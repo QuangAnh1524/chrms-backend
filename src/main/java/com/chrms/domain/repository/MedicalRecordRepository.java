@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface MedicalRecordRepository {
     MedicalRecord save(MedicalRecord record);
     Optional<MedicalRecord> findById(Long id);
+    Optional<MedicalRecord> findByAppointmentId(Long appointmentId);
     List<MedicalRecord> findByPatientId(Long patientId);
     List<MedicalRecord> findByDoctorId(Long doctorId);
     List<MedicalRecord> findByHospitalId(Long hospitalId);

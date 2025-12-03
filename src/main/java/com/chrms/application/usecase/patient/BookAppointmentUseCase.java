@@ -12,6 +12,7 @@ import com.chrms.domain.exception.BusinessRuleViolationException;
 import com.chrms.domain.exception.EntityNotFoundException;
 import com.chrms.domain.repository.AppointmentRepository;
 import com.chrms.domain.repository.DoctorRepository;
+import com.chrms.domain.repository.DoctorScheduleRepository;
 import com.chrms.domain.repository.HospitalRepository;
 import com.chrms.domain.repository.PatientRepository;
 import com.chrms.domain.repository.UserRepository;
@@ -30,6 +31,7 @@ public class BookAppointmentUseCase {
     private final DoctorRepository doctorRepository;
     private final HospitalRepository hospitalRepository;
     private final UserRepository userRepository;
+    private final DoctorScheduleRepository scheduleRepository;
 
     @Transactional
     public AppointmentResult execute(BookAppointmentCommand command) {
@@ -50,7 +52,18 @@ public class BookAppointmentUseCase {
             throw new BusinessRuleViolationException("Cannot book appointment in the past");
         }
 
-        // Check if doctor has appointment at the same time
+        // Check if doctor is available at this time based on schedule
+        boolean isAvailable = scheduleRepository.isDoctorAvailableAt(
+                command.getDoctorId(),
+                command.getAppointmentDate(),
+                command.getAppointmentTime()
+        );
+
+        if (!isAvailable) {
+            throw new BusinessRuleViolationException("Doctor is not available at this time. Please check available slots.");
+        }
+
+        // Double-check if doctor has appointment at the same time (additional validation)
         List<Appointment> existingAppointments = appointmentRepository.findByDoctorIdAndDate(
                 command.getDoctorId(),
                 command.getAppointmentDate()
@@ -61,7 +74,7 @@ public class BookAppointmentUseCase {
                         && apt.getStatus() != AppointmentStatus.CANCELLED);
 
         if (hasConflict) {
-            throw new BusinessRuleViolationException("Doctor is not available at this time");
+            throw new BusinessRuleViolationException("Doctor already has an appointment at this time");
         }
 
         // Create appointment

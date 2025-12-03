@@ -1,9 +1,11 @@
 package com.chrms.infrastructure.security.jwt;
 
+import com.chrms.infrastructure.cache.RedisCacheService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -14,7 +16,10 @@ import java.util.Date;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtTokenProvider {
+
+    private final RedisCacheService cacheService;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -62,6 +67,12 @@ public class JwtTokenProvider {
 
     public boolean validateToken(String token) {
         try {
+            // Check if token is blacklisted
+            if (cacheService.isTokenBlacklisted(token)) {
+                log.warn("Token is blacklisted");
+                return false;
+            }
+            
             Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
@@ -71,5 +82,14 @@ public class JwtTokenProvider {
             log.error("Invalid JWT token: {}", e.getMessage());
             return false;
         }
+    }
+
+    public Date getExpirationDateFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return claims.getExpiration();
     }
 }

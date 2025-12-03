@@ -18,6 +18,12 @@ public class AuthMapper {
                 .fullName(request.getFullName())
                 .phone(request.getPhone())
                 .role(request.getRole())
+                .dateOfBirth(request.getDateOfBirth())
+                .gender(request.getGender())
+                .address(request.getAddress())
+                .emergencyContact(request.getEmergencyContact())
+                .bloodType(request.getBloodType())
+                .allergies(request.getAllergies())
                 .build();
     }
 

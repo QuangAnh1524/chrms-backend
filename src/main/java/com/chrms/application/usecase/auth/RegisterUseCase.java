@@ -4,7 +4,6 @@ import com.chrms.application.dto.command.RegisterCommand;
 import com.chrms.application.dto.result.AuthResult;
 import com.chrms.domain.entity.Patient;
 import com.chrms.domain.entity.User;
-import com.chrms.domain.enums.Gender;
 import com.chrms.domain.enums.Role;
 import com.chrms.domain.exception.BusinessRuleViolationException;
 import com.chrms.domain.repository.PatientRepository;
@@ -13,8 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
@@ -42,10 +39,22 @@ public class RegisterUseCase {
 
         // Auto create Patient profile if role is PATIENT
         if (savedUser.getRole() == Role.PATIENT) {
+            // Validate required fields for PATIENT
+            if (command.getDateOfBirth() == null) {
+                throw new BusinessRuleViolationException("Date of birth is required for PATIENT role");
+            }
+            if (command.getGender() == null) {
+                throw new BusinessRuleViolationException("Gender is required for PATIENT role");
+            }
+            
             Patient patient = Patient.builder()
                     .userId(savedUser.getId())
-                    .dateOfBirth(LocalDate.of(1990, 1, 1)) // Default DOB
-                    .gender(Gender.OTHER) // Default gender
+                    .dateOfBirth(command.getDateOfBirth())
+                    .gender(command.getGender())
+                    .address(command.getAddress())
+                    .emergencyContact(command.getEmergencyContact())
+                    .bloodType(command.getBloodType())
+                    .allergies(command.getAllergies())
                     .build();
             patientRepository.save(patient);
         }

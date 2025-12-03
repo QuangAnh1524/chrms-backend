@@ -1,0 +1,465 @@
+{
+  "info": {
+    "name": "CHRMS API Collection",
+    "description": "Centralized Health Record Management System - API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient1@test.com\",\n  \"password\": \"password123\",\n  \"fullName\": \"Nguyễn Văn A\",\n  \"phone\": \"0912345678\",\n  \"role\": \"PATIENT\",\n  \"dateOfBirth\": \"1995-01-15\",\n  \"gender\": \"MALE\",\n  \"address\": \"123 Đường ABC, Hà Nội\",\n  \"emergencyContact\": \"0987654321\",\n  \"bloodType\": \"O\",\n  \"allergies\": \"Không có\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Doctor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"doctor1@test.com\",\n  \"password\": \"password123\",\n  \"fullName\": \"Bác Sĩ Nguyễn Văn B\",\n  \"phone\": \"0911111111\",\n  \"role\": \"DOCTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.token) {",
+                  "        pm.collectionVariables.set(\"token\", jsonData.data.token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient1@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Hospitals & Doctors",
+      "item": [
+        {
+          "name": "Get All Hospitals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/hospitals",
+              "host": ["{{baseUrl}}"],
+              "path": ["hospitals"]
+            }
+          }
+        },
+        {
+          "name": "Get All Doctors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctors",
+              "host": ["{{baseUrl}}"],
+              "path": ["doctors"]
+            }
+          }
+        },
+        {
+          "name": "Get Doctors by Department",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctors/department/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["doctors", "department", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get Doctors by Hospital",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctors/hospital/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["doctors", "hospital", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doctor Schedules",
+      "item": [
+        {
+          "name": "Create Schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": 1,\n  \"dayOfWeek\": 1,\n  \"startTime\": \"08:00:00\",\n  \"endTime\": \"12:00:00\",\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/doctors/schedules",
+              "host": ["{{baseUrl}}"],
+              "path": ["doctors", "schedules"]
+            }
+          }
+        },
+        {
+          "name": "Get Doctor Schedules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctors/1/schedules",
+              "host": ["{{baseUrl}}"],
+              "path": ["doctors", "1", "schedules"]
+            }
+          }
+        },
+        {
+          "name": "Get Available Slots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/doctors/1/available-slots?date=2025-12-10",
+              "host": ["{{baseUrl}}"],
+              "path": ["doctors", "1", "available-slots"],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2025-12-10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "Book Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": 1,\n  \"hospitalId\": 1,\n  \"appointmentDate\": \"2025-12-10\",\n  \"appointmentTime\": \"09:00:00\",\n  \"symptoms\": \"Đau đầu, sốt nhẹ\",\n  \"notes\": \"Bệnh nhân có tiền sử dị ứng thuốc\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/patients/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["patients", "appointments"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prescriptions",
+      "item": [
+        {
+          "name": "Create Prescription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medicalRecordId\": 1,\n  \"items\": [\n    {\n      \"medicineId\": 1,\n      \"dosage\": \"500mg\",\n      \"frequency\": \"2 lần/ngày\",\n      \"duration\": \"7 ngày\",\n      \"quantity\": 14,\n      \"instructions\": \"Uống sau khi ăn\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/prescriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["prescriptions"]
+            }
+          }
+        },
+        {
+          "name": "Get Prescription by Medical Record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/prescriptions/medical-record/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["prescriptions", "medical-record", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Medical Record Files",
+      "item": [
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "medicalRecordId",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "fileType",
+                  "value": "XRAY",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/medical-records/files/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["medical-records", "files", "upload"]
+            }
+          }
+        },
+        {
+          "name": "Get Files by Medical Record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/medical-records/files/medical-record/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["medical-records", "files", "medical-record", "1"]
+            }
+          }
+        },
+        {
+          "name": "Download File",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/medical-records/files/1/download",
+              "host": ["{{baseUrl}}"],
+              "path": ["medical-records", "files", "1", "download"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Payment Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": 1,\n  \"paymentMethod\": \"VNPAY\",\n  \"transactionRef\": \"TXN-ABC12345\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"]
+            }
+          }
+        },
+        {
+          "name": "Get Payments by Appointment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/appointment/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "appointment", "1"]
+            }
+          }
+        },
+        {
+          "name": "Complete Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/TXN-ABC12345/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "TXN-ABC12345", "complete"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+
