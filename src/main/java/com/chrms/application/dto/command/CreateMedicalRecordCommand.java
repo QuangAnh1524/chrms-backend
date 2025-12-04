@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateMedicalRecordCommand {
     private Long appointmentId;
+    private String symptoms;
     private String diagnosis;
     private String treatment;
     private String notes;
