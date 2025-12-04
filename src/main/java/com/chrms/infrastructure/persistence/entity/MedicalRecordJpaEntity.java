@@ -36,6 +36,9 @@ public class MedicalRecordJpaEntity {
     @Column(name = "appointment_id")
     private Long appointmentId;
 
+    @Column(columnDefinition = "TEXT")
+    private String symptoms;
+
     @Column(columnDefinition = "TEXT", nullable = false)
     private String diagnosis;
 

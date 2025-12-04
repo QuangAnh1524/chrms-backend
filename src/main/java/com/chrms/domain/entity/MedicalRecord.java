@@ -19,6 +19,7 @@ public class MedicalRecord {
     private Long doctorId;
     private Long hospitalId;
     private Long appointmentId;
+    private String symptoms;
     private String diagnosis;
     private String treatment;
     private RecordStatus status;

@@ -83,6 +83,20 @@ Doctor:   doctor1@test.com / password123
 Admin:    admin@chrms.vn / admin123
 ```
 
+### 🧪 Chạy kịch bản API end-to-end (không cần Postman)
+
+Script `scripts/run_full_api_flow.sh` tự động chạy toàn bộ luồng Patient → Doctor → Payment → Medical Record → Prescription → Chat → Feedback và ghi log chi tiết vào một file `.txt`.
+
+```bash
+# Điều chỉnh nếu cần: BASE_URL, LOG_FILE, PATIENT_EMAIL/PASSWORD, DOCTOR_EMAIL/PASSWORD, HOSPITAL_ID, DOCTOR_ID
+bash scripts/run_full_api_flow.sh
+
+# Xem hướng dẫn nhanh
+bash scripts/run_full_api_flow.sh --help
+```
+
+Output mẫu được lưu ở `./api-test-run-YYYYMMDD-HHMMSS.txt`, mỗi bước đều hiển thị actor, endpoint, request body và response để tiện kiểm tra.
+
 ### 2. Local Development
 
 ```bash

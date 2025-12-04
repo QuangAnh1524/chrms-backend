@@ -288,6 +288,20 @@ Content-Type: application/json
 }
 ```
 
+**👉 What to do after booking?**
+
+1. Lấy `id` cuộc hẹn từ response (ví dụ `id: 4`).
+2. Tạo Medical Record dùng `appointmentId` đó:
+   ```json
+   {
+     "appointmentId": 4,
+     "diagnosis": "Viêm phế quản cấp",
+     "treatment": "Nghỉ ngơi, uống nhiều nước, dùng thuốc kháng sinh",
+     "notes": "Bệnh nhân cần theo dõi thêm"
+   }
+   ```
+3. Từ Medical Record vừa tạo, lấy `id` (ví dụ `medicalRecordId: 7`) để tạo Prescription ở bước 12.
+
 ---
 
 ## 💊 Prescription APIs
