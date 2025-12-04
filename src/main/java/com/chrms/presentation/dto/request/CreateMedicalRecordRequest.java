@@ -15,6 +15,8 @@ public class CreateMedicalRecordRequest {
     @NotNull(message = "Appointment ID is required")
     private Long appointmentId;
 
+    private String symptoms;
+
     @NotBlank(message = "Diagnosis is required")
     private String diagnosis;
 
