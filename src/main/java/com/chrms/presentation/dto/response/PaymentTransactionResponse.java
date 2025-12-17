@@ -20,6 +20,7 @@ public class PaymentTransactionResponse {
     private String paymentMethod;
     private PaymentStatus status;
     private String transactionRef;
+    private String paymentUrl;
     private LocalDateTime paidAt;
     private LocalDateTime createdAt;
 }

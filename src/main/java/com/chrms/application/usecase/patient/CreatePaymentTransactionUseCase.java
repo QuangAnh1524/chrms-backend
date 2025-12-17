@@ -1,5 +1,7 @@
 package com.chrms.application.usecase.patient;
 
+import com.chrms.application.port.payment.PaymentGatewayClient;
+import com.chrms.application.port.payment.PaymentGatewayResponse;
 import com.chrms.domain.entity.Appointment;
 import com.chrms.domain.entity.PaymentTransaction;
 import com.chrms.domain.enums.PaymentStatus;
@@ -18,28 +20,46 @@ import java.util.UUID;
 public class CreatePaymentTransactionUseCase {
     private final PaymentTransactionRepository transactionRepository;
     private final AppointmentRepository appointmentRepository;
+    private final PaymentGatewayClient paymentGatewayClient;
 
     @Transactional
-    public PaymentTransaction execute(Long appointmentId, String paymentMethod, String transactionRef) {
+    public PaymentInitiationResult execute(Long appointmentId, String paymentMethod, String transactionRef, String returnUrl) {
         // Validate appointment exists
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new EntityNotFoundException("Appointment", appointmentId));
 
+        java.math.BigDecimal amount = calculateAmount(appointment);
+        PaymentGatewayResponse gatewayResponse = null;
+
+        if (!"CASH".equalsIgnoreCase(paymentMethod)) {
+            gatewayResponse = paymentGatewayClient.initiatePayment(
+                    amount,
+                    "APPOINTMENT-" + appointmentId,
+                    returnUrl
+            );
+            transactionRef = gatewayResponse.getTransactionRef();
+        }
+
         // Generate transaction reference if not provided
         if (transactionRef == null || transactionRef.isEmpty()) {
-            transactionRef = "TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            transactionRef = generateFallbackTransactionRef();
         }
 
         // Create transaction
         PaymentTransaction transaction = PaymentTransaction.builder()
                 .appointmentId(appointmentId)
-                .amount(calculateAmount(appointment)) // You can implement this based on doctor fee
+                .amount(amount)
                 .paymentMethod(paymentMethod)
                 .status(PaymentStatus.PENDING)
                 .transactionRef(transactionRef)
                 .build();
 
-        return transactionRepository.save(transaction);
+        PaymentTransaction saved = transactionRepository.save(transaction);
+
+        return PaymentInitiationResult.builder()
+                .transaction(saved)
+                .paymentUrl(gatewayResponse != null ? gatewayResponse.getPaymentUrl() : null)
+                .build();
     }
 
     @Transactional
@@ -58,6 +78,10 @@ public class CreatePaymentTransactionUseCase {
     private java.math.BigDecimal calculateAmount(Appointment appointment) {
         // Mock calculation - in real scenario, get from doctor's consultation fee
         return new java.math.BigDecimal("500000"); // 500,000 VND default
+    }
+
+    private String generateFallbackTransactionRef() {
+        return "TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 }
 
