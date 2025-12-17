@@ -38,7 +38,7 @@ public class CreateMedicalRecordUseCase {
                 .doctorId(appointment.getDoctorId())
                 .hospitalId(appointment.getHospitalId())
                 .appointmentId(command.getAppointmentId())
-                .symptoms(command.getSymptoms() != null ? command.getSymptoms() : appointment.getSymptoms())
+                .symptoms(command.getSymptoms() != null ? command.getSymptoms() : appointment.getNotes())
                 .diagnosis(command.getDiagnosis())
                 .treatment(command.getTreatment())
                 .status(RecordStatus.DRAFT)

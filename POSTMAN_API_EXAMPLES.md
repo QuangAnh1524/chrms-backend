@@ -12,22 +12,18 @@ Base URL: `http://localhost:8080/api/v1`
 Content-Type: application/json
 ```
 
-**Body (JSON):**
+**Body (JSON) – chỉ bắt buộc thông tin tài khoản:**
 ```json
 {
   "email": "patient1@test.com",
   "password": "password123",
   "fullName": "Nguyễn Văn A",
   "phone": "0912345678",
-  "role": "PATIENT",
-  "dateOfBirth": "1995-01-15",
-  "gender": "MALE",
-  "address": "123 Đường ABC, Hà Nội",
-  "emergencyContact": "0987654321",
-  "bloodType": "O",
-  "allergies": "Không có"
+  "role": "PATIENT"
 }
 ```
+
+> ℹ️ Các trường `dateOfBirth`, `gender`, `address`, `emergencyContact`, `bloodType`, `allergies` có thể bổ sung sau, không bắt buộc khi tạo tài khoản bệnh nhân.
 
 **Response:**
 ```json
@@ -258,10 +254,10 @@ Content-Type: application/json
 {
   "doctorId": 1,
   "hospitalId": 1,
+  "departmentId": 2,
   "appointmentDate": "2025-12-10",
-  "appointmentTime": "09:00:00",
-  "symptoms": "Đau đầu, sốt nhẹ",
-  "notes": "Bệnh nhân có tiền sử dị ứng thuốc"
+  "appointmentTime": "09:00",
+  "notes": "Mong muốn khám nhanh để kịp giờ làm"
 }
 ```
 
@@ -278,15 +274,22 @@ Content-Type: application/json
     "doctorName": "Bác Sĩ Nguyễn Văn B",
     "hospitalId": 1,
     "hospitalName": "Bệnh viện Bạch Mai",
+    "departmentId": 2,
+    "departmentName": "Nội tổng hợp",
     "appointmentDate": "2025-12-10",
-    "appointmentTime": "09:00:00",
+    "appointmentTime": "09:00",
+    "queueNumber": 5,
     "status": "PENDING",
-    "symptoms": "Đau đầu, sốt nhẹ",
-    "notes": "Bệnh nhân có tiền sử dị ứng thuốc",
+    "notes": "Mong muốn khám nhanh để kịp giờ làm",
     "createdAt": "2025-12-03T10:00:00"
   }
 }
 ```
+
+**Lưu ý thực tế:**
+- Giờ nhập theo định dạng `HH:mm`, hệ thống chuẩn hóa bỏ giây/nano giây.
+- Không đặt được nếu giờ khám nằm trong quá khứ (kể cả đặt trong cùng ngày).
+- Nếu bác sĩ hoặc bệnh nhân đã có lịch ở cùng thời điểm, yêu cầu sẽ bị từ chối.
 
 **👉 What to do after booking?**
 
@@ -302,11 +305,65 @@ Content-Type: application/json
    ```
 3. Từ Medical Record vừa tạo, lấy `id` (ví dụ `medicalRecordId: 7`) để tạo Prescription ở bước 12.
 
+### 12. Get Upcoming Appointments (Patient)
+**GET** `/patients/appointments/upcoming`
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Response (ví dụ):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 10,
+      "doctorName": "Bác Sĩ Nguyễn Văn B",
+      "hospitalName": "Bệnh viện Bạch Mai",
+      "departmentName": "Nội tổng hợp",
+      "appointmentDate": "2025-12-10",
+      "appointmentTime": "09:00",
+      "queueNumber": 5,
+      "status": "PENDING"
+    }
+  ]
+}
+```
+
+### 13. Get Appointment History (Patient)
+**GET** `/patients/appointments/history`
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Response (ví dụ):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 8,
+      "doctorName": "Bác Sĩ Nguyễn Văn B",
+      "hospitalName": "Bệnh viện Bạch Mai",
+      "departmentName": "Nội tổng hợp",
+      "appointmentDate": "2025-11-01",
+      "appointmentTime": "14:30",
+      "queueNumber": 12,
+      "status": "COMPLETED"
+    }
+  ]
+}
+```
+
 ---
 
 ## 💊 Prescription APIs
 
-### 12. Create Prescription
+### 14. Create Prescription
 **POST** `/prescriptions`
 
 **Headers:**
@@ -366,7 +423,7 @@ Content-Type: application/json
 }
 ```
 
-### 13. Get Prescription by Medical Record
+### 15. Get Prescription by Medical Record
 **GET** `/prescriptions/medical-record/{medicalRecordId}`
 
 **Example:** `/prescriptions/medical-record/1`
@@ -380,7 +437,7 @@ Authorization: Bearer {token}
 
 ## 📎 Medical Record Files APIs
 
-### 14. Upload File
+### 16. Upload File
 **POST** `/medical-records/files/upload`
 
 **Headers:**
@@ -411,7 +468,7 @@ Content-Type: multipart/form-data
 }
 ```
 
-### 15. Get Files by Medical Record
+### 17. Get Files by Medical Record
 **GET** `/medical-records/files/medical-record/{medicalRecordId}`
 
 **Example:** `/medical-records/files/medical-record/1`
@@ -439,7 +496,7 @@ Authorization: Bearer {token}
 }
 ```
 
-### 16. Download File
+### 18. Download File
 **GET** `/medical-records/files/{id}/download`
 
 **Example:** `/medical-records/files/1/download`
@@ -455,7 +512,7 @@ Authorization: Bearer {token}
 
 ## 💳 Payment Transaction APIs
 
-### 17. Create Payment Transaction
+### 19. Create Payment Transaction
 **POST** `/payments`
 
 **Headers:**
@@ -491,7 +548,7 @@ Content-Type: application/json
 }
 ```
 
-### 18. Get Payments by Appointment
+### 20. Get Payments by Appointment
 **GET** `/payments/appointment/{appointmentId}`
 
 **Example:** `/payments/appointment/1`
@@ -501,7 +558,7 @@ Content-Type: application/json
 Authorization: Bearer {token}
 ```
 
-### 19. Complete Payment (VNPay Callback)
+### 21. Complete Payment (VNPay Callback)
 **POST** `/payments/{transactionRef}/complete`
 
 **Example:** `/payments/TXN-ABC12345/complete`
@@ -533,7 +590,7 @@ Authorization: Bearer {token}
 
 ## 📋 Medical Records APIs
 
-### 20. Create Medical Record
+### 22. Create Medical Record
 **POST** `/medical-records`
 
 **Headers:**
@@ -574,7 +631,7 @@ Content-Type: application/json
 }
 ```
 
-### 21. Approve Medical Record
+### 23. Approve Medical Record
 **POST** `/medical-records/{id}/approve`
 
 **Example:** `/medical-records/1/approve`
@@ -584,12 +641,12 @@ Content-Type: application/json
 Authorization: Bearer {token}
 ```
 
-### 22. Get Records by Patient
+### 24. Get Records by Patient
 **GET** `/medical-records/patient/{patientId}`
 
 **Example:** `/medical-records/patient/1`
 
-### 23. Get Record by ID
+### 25. Get Record by ID
 **GET** `/medical-records/{id}`
 
 **Example:** `/medical-records/1`
@@ -598,7 +655,7 @@ Authorization: Bearer {token}
 
 ## 💬 Chat APIs (Polling-based)
 
-### 24. Send Chat Message
+### 26. Send Chat Message
 **POST** `/chat/appointments/{appointmentId}/messages`
 
 **Example:** `/chat/appointments/1/messages`
@@ -632,7 +689,7 @@ Content-Type: application/json
 }
 ```
 
-### 25. Get Messages (Polling)
+### 27. Get Messages (Polling)
 **GET** `/chat/appointments/{appointmentId}/messages?after=2025-12-03T09:00:00`
 
 **Example:** `/chat/appointments/1/messages?after=2025-12-03T09:00:00`
@@ -661,7 +718,7 @@ Authorization: Bearer {token}
 }
 ```
 
-### 26. Get Unread Messages (Polling)
+### 28. Get Unread Messages (Polling)
 **GET** `/chat/appointments/{appointmentId}/messages/unread`
 
 **Example:** `/chat/appointments/1/messages/unread`
@@ -677,7 +734,7 @@ Authorization: Bearer {token}
 
 ## ⭐ Feedback APIs
 
-### 27. Submit Feedback
+### 29. Submit Feedback
 **POST** `/feedback`
 
 **Headers:**
@@ -712,7 +769,7 @@ Content-Type: application/json
 }
 ```
 
-### 28. Get Feedback by Doctor
+### 30. Get Feedback by Doctor
 **GET** `/feedback/doctor/{doctorId}`
 
 **Example:** `/feedback/doctor/1`
@@ -722,7 +779,7 @@ Content-Type: application/json
 Authorization: Bearer {token}
 ```
 
-### 29. Get Average Rating
+### 31. Get Average Rating
 **GET** `/feedback/doctor/{doctorId}/average-rating`
 
 **Example:** `/feedback/doctor/1/average-rating`

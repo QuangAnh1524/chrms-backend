@@ -1,6 +1,7 @@
 package com.chrms.presentation.dto.response;
 
 import com.chrms.domain.enums.AppointmentStatus;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,10 +23,13 @@ public class AppointmentResponse {
     private String doctorName;
     private Long hospitalId;
     private String hospitalName;
+    private Long departmentId;
+    private String departmentName;
     private LocalDate appointmentDate;
+    @JsonFormat(pattern = "HH:mm")
     private LocalTime appointmentTime;
+    private Integer queueNumber;
     private AppointmentStatus status;
-    private String symptoms;
     private String notes;
     private LocalDateTime createdAt;
 }

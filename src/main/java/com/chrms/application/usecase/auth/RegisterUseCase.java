@@ -39,14 +39,6 @@ public class RegisterUseCase {
 
         // Auto create Patient profile if role is PATIENT
         if (savedUser.getRole() == Role.PATIENT) {
-            // Validate required fields for PATIENT
-            if (command.getDateOfBirth() == null) {
-                throw new BusinessRuleViolationException("Date of birth is required for PATIENT role");
-            }
-            if (command.getGender() == null) {
-                throw new BusinessRuleViolationException("Gender is required for PATIENT role");
-            }
-            
             Patient patient = Patient.builder()
                     .userId(savedUser.getId())
                     .dateOfBirth(command.getDateOfBirth())

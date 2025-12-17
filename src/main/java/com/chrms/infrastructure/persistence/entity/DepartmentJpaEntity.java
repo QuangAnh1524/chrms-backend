@@ -1,6 +1,5 @@
 package com.chrms.infrastructure.persistence.entity;
 
-import com.chrms.domain.enums.Gender;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,42 +8,28 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "patients")
+@Table(name = "departments")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PatientJpaEntity {
+public class DepartmentJpaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @Column(name = "hospital_id", nullable = false)
+    private Long hospitalId;
 
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
-
-    @Enumerated(EnumType.STRING)
-    @Column(length = 10)
-    private Gender gender;
-
-    @Column(length = 500)
-    private String address;
-
-    @Column(name = "emergency_contact", length = 20)
-    private String emergencyContact;
-
-    @Column(name = "blood_type", length = 5)
-    private String bloodType;
+    @Column(nullable = false)
+    private String name;
 
     @Column(columnDefinition = "TEXT")
-    private String allergies;
+    private String description;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

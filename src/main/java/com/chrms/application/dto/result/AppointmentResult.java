@@ -22,10 +22,12 @@ public class AppointmentResult {
     private String doctorName;
     private Long hospitalId;
     private String hospitalName;
+    private Long departmentId;
+    private String departmentName;
     private LocalDate appointmentDate;
     private LocalTime appointmentTime;
+    private Integer queueNumber;
     private AppointmentStatus status;
-    private String symptoms;
     private String notes;
     private LocalDateTime createdAt;
 }

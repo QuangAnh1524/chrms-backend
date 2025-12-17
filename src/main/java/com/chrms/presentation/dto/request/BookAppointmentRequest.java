@@ -1,6 +1,7 @@
 package com.chrms.presentation.dto.request;
 
-import jakarta.validation.constraints.Future;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,13 +22,15 @@ public class BookAppointmentRequest {
     @NotNull(message = "Hospital ID is required")
     private Long hospitalId;
 
+    @NotNull(message = "Department ID is required")
+    private Long departmentId;
+
     @NotNull(message = "Appointment date is required")
-    @Future(message = "Appointment date must be in the future")
+    @FutureOrPresent(message = "Appointment date cannot be in the past")
     private LocalDate appointmentDate;
 
     @NotNull(message = "Appointment time is required")
+    @JsonFormat(pattern = "HH:mm")
     private LocalTime appointmentTime;
-
-    private String symptoms;
     private String notes;
 }
