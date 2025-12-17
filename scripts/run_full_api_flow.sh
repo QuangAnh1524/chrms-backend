@@ -5,7 +5,7 @@ BASE_URL=${BASE_URL:-"http://localhost:8080/api/v1"}
 LOG_FILE=${LOG_FILE:-"./api-test-run-$(date +%Y%m%d-%H%M%S).txt"}
 
 # Default credentials for seeded demo accounts (see V2__seed_data.sql)
-PATIENT_EMAIL=${PATIENT_EMAIL:-"patient1@test.com"}
+PATIENT_EMAIL=${PATIENT_EMAIL:-"patient312@test.com"}
 PATIENT_PASSWORD=${PATIENT_PASSWORD:-"password123"}
 DOCTOR_EMAIL=${DOCTOR_EMAIL:-"doctor1@test.com"}
 DOCTOR_PASSWORD=${DOCTOR_PASSWORD:-"password123"}
