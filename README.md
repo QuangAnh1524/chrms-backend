@@ -166,19 +166,30 @@ Admin:    admin@chrms.vn    / password123
 | Chat | POST `/chat/appointments/{appointmentId}/messages` | Gửi chat | `{ "message" }` (lấy `userId` từ JWT) |
 | Feedback | POST `/feedback` | Bệnh nhân gửi đánh giá | `{ "appointmentId", "rating", "comment" }` |
 
-> Đầy đủ 29 endpoint: xem [API_SUMMARY.md](API_SUMMARY.md) hoặc Swagger UI.
+> Đầy đủ 31 endpoint: xem [API_SUMMARY.md](API_SUMMARY.md) hoặc Swagger UI.
 
-### 🔄 Chuỗi workflow mẫu
+### 🔄 Chuỗi workflow mẫu (tóm tắt)
 1) **Bệnh nhân đặt lịch + thanh toán:** Login → lấy `available-slots` → `POST /patients/appointments` → `POST /payments` → `POST /payments/{ref}/complete`.
 2) **Bác sĩ khám & ra đơn:** Login bác sĩ → `POST /doctors/schedules` → sau khi có appointment → `POST /medical-records` → upload file → `POST /medical-records/{id}/approve` → `POST /prescriptions`.
 3) **Chat:** Hai phía gửi `POST /chat/appointments/{id}/messages`; FE poll `GET /chat/appointments/{id}/messages?after=<time>` hoặc `GET .../unread`.
 4) **Feedback:** Patient sau khám → `POST /feedback` → hiển thị `GET /feedback/doctor/{doctorId}` và `.../average-rating`.
 
-### 🔧 Mức độ hoàn thiện & cần bổ sung
-- **Thanh toán còn giả lập:** số tiền luôn mặc định `500000` thay vì lấy phí khám của bác sĩ/appointment; chưa có tích hợp cổng thanh toán thực tế hay webhook xác nhận.
-- **Lưu file cục bộ:** upload lưu vào thư mục `${app.upload.dir}` (mặc định `uploads`) và tải trực tiếp từ filesystem; chưa có adapter `FileStorageService` cho S3/MinIO và chưa cấu hình antivirus/quota.
-- **Chat chỉ polling:** API `/chat/appointments/{id}/messages` và `/unread` dùng HTTP polling, chưa có WebSocket/push notification nên trải nghiệm realtime còn hạn chế.
-- **Bảo mật/ops:** chưa thấy cơ chế refresh token, giới hạn request hoặc audit log chi tiết; khi triển khai production cần bổ sung rate-limit, theo dõi bảo mật và cấu hình backup/observability.
+### 🧭 Luồng nghiệp vụ chi tiết (có thông tin API)
+| Luồng | Vai trò chính | Các bước chính | API & dữ liệu tối thiểu |
+| --- | --- | --- | --- |
+| Đặt lịch & thanh toán | Patient | 1) Đăng nhập → 2) Lấy slot rảnh theo ngày → 3) Tạo appointment → 4) Tạo giao dịch → 5) Hoàn tất thanh toán | 1) `POST /auth/login` → lấy `token`.<br>2) `GET /doctors/{doctorId}/available-slots?date=YYYY-MM-DD`.<br>3) `POST /patients/appointments` với `{ doctorId, hospitalId, departmentId, appointmentDate (YYYY-MM-DD), appointmentTime (HH:mm), notes? }` nhận `queueNumber`, `status=PENDING`.<br>4) `POST /payments` với `{ appointmentId, paymentMethod }` (VNPAY/CASH/CARD) → trả `transactionRef`, `status=PENDING`.<br>5) `POST /payments/{transactionRef}/complete` → `paymentStatus=COMPLETED`, appointment chuyển `CONFIRMED`/`COMPLETED` sau khi khám. |
+| Khám bệnh & hồ sơ | Doctor | 1) Tạo lịch làm việc → 2) Nhận bệnh nhân có appointment → 3) Lập hồ sơ → 4) Upload file → 5) Duyệt hồ sơ → 6) Kê đơn | 1) `POST /doctors/schedules` `{ doctorId, dayOfWeek, startTime, endTime, isAvailable? }`.<br>2) `GET /patients/appointments/upcoming` (đối với patient) hoặc custom search (tích hợp BE); appointment liên kết doctorId.<br>3) `POST /medical-records` `{ appointmentId, diagnosis, notes }` trả `status=DRAFT`.<br>4) `POST /medical-records/files/upload` multipart `medicalRecordId`, `file`, `fileType`.<br>5) `POST /medical-records/{id}/approve` → `status=APPROVED` (hồ sơ khóa để đọc).<br>6) `POST /prescriptions` `{ medicalRecordId, medicines:[{ medicineId, dosage, quantity, instructions? }] }`. |
+| Chat khám bệnh | Patient + Doctor | 1) Hai bên gửi tin nhắn → 2) Poll danh sách → 3) Lọc tin chưa đọc | 1) `POST /chat/appointments/{appointmentId}/messages` với `{ message }` (backend lấy `userId` từ JWT).<br>2) `GET /chat/appointments/{appointmentId}/messages?after=YYYY-MM-DDTHH:mm:ss` để tải incremental.<br>3) `GET /chat/appointments/{appointmentId}/messages/unread` để lấy tin chưa đọc, cache hỗ trợ tải nhanh. |
+| Feedback & rating | Patient | 1) Gửi đánh giá sau khám → 2) FE hiển thị danh sách và điểm trung bình | 1) `POST /feedback` `{ appointmentId, rating (1-5), comment? }`.<br>2) `GET /feedback/doctor/{doctorId}` và `GET /feedback/doctor/{doctorId}/average-rating` (đã cache 10 phút). |
+
+### 🔗 API hữu ích khác
+- `GET /medical-records/patient/{patientId}`: FE dùng để tra cứu lịch sử khám của bệnh nhân đã đăng nhập.
+- `GET /payments/appointment/{appointmentId}`: hiển thị trạng thái giao dịch khi patient reload trang.
+- `GET /prescriptions/medical-record/{medicalRecordId}`: hiển thị chi tiết đơn thuốc sau khi bác sĩ kê đơn.
+
+### ✉️ Email & thanh toán
+- **Email thông báo:** `BookAppointmentUseCase` gửi email xác nhận lịch khám cho bệnh nhân nếu có địa chỉ email, nội dung dựng từ `EmailService` và gửi qua `JavaMailSender` (có log cảnh báo nếu gửi lỗi).
+- **Chi tiết thanh toán:** `CreatePaymentTransactionUseCase` tính phí mặc định `500000` VND, gọi `PaymentGatewayClient` khi phương thức khác CASH để tạo `transactionRef`/`paymentUrl`, sau đó lưu `PaymentTransaction` với trạng thái `PENDING` và cho phép cập nhật sang `COMPLETED` khi nhận callback/bấm complete.
 
 ### 🎨 Gợi ý cho FE
 - **Trang đặt lịch:** dùng `/hospitals`, `/doctors/department/{id}`, `/doctors/{doctorId}/available-slots`; submit `/patients/appointments`.
