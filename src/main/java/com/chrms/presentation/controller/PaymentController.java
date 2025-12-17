@@ -1,6 +1,7 @@
 package com.chrms.presentation.controller;
 
 import com.chrms.application.usecase.patient.CreatePaymentTransactionUseCase;
+import com.chrms.application.usecase.patient.PaymentInitiationResult;
 import com.chrms.domain.entity.PaymentTransaction;
 import com.chrms.domain.enums.PaymentStatus;
 import com.chrms.domain.repository.PaymentTransactionRepository;
@@ -32,11 +33,14 @@ public class PaymentController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create payment transaction", description = "Create a new payment transaction for an appointment")
     public ApiResponse<PaymentTransactionResponse> createPayment(@Valid @RequestBody CreatePaymentRequest request) {
-        PaymentTransaction transaction = createPaymentUseCase.execute(
+        PaymentInitiationResult result = createPaymentUseCase.execute(
                 request.getAppointmentId(),
                 request.getPaymentMethod(),
-                request.getTransactionRef()
+                request.getTransactionRef(),
+                request.getReturnUrl()
         );
+
+        PaymentTransaction transaction = result.getTransaction();
 
         PaymentTransactionResponse response = PaymentTransactionResponse.builder()
                 .id(transaction.getId())
@@ -45,6 +49,7 @@ public class PaymentController {
                 .paymentMethod(transaction.getPaymentMethod())
                 .status(transaction.getStatus())
                 .transactionRef(transaction.getTransactionRef())
+                .paymentUrl(result.getPaymentUrl())
                 .paidAt(transaction.getPaidAt())
                 .createdAt(transaction.getCreatedAt())
                 .build();
@@ -65,6 +70,7 @@ public class PaymentController {
                         .paymentMethod(transaction.getPaymentMethod())
                         .status(transaction.getStatus())
                         .transactionRef(transaction.getTransactionRef())
+                        .paymentUrl(null)
                         .paidAt(transaction.getPaidAt())
                         .createdAt(transaction.getCreatedAt())
                         .build())
@@ -85,6 +91,7 @@ public class PaymentController {
                 .paymentMethod(transaction.getPaymentMethod())
                 .status(transaction.getStatus())
                 .transactionRef(transaction.getTransactionRef())
+                .paymentUrl(null)
                 .paidAt(transaction.getPaidAt())
                 .createdAt(transaction.getCreatedAt())
                 .build();

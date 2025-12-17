@@ -21,6 +21,22 @@ Centralized Health Record Management System (MVP) cho nền tảng y tế số H
 - **Chat & phản hồi:** chat theo appointment, bệnh nhân gửi đánh giá bác sĩ.
 - **Hạ tầng:** Clean Architecture; Flyway migration/seed; Redis cache; global exception handler và logging.
 
+## 🔁 Redis đang hoạt động ở đâu?
+- **Cấu hình & TTL:** `RedisConfig` bật `@EnableCaching`, tạo `RedisTemplate` + `CacheManager` với TTL mặc định từ `app.cache.ttl` (5 phút trong `application.yml`).
+- **Service thao tác cache:** `RedisCacheService` cung cấp set/get/delete, đặt TTL tùy ý và một số prefix (`search:`, `chat:`, `doctor:rating:`, `jwt:blacklist:`).
+- **Blacklist JWT khi logout:** `AuthController.logout` đọc token hiện tại, tính thời gian hết hạn và lưu vào Redis với key `jwt:blacklist:<token>`; việc validate token sẽ kiểm tra blacklist.
+- **Cache kết quả search bệnh án:** `SearchMedicalRecordsUseCase` đánh dấu `@Cacheable` cho tìm kiếm theo triệu chứng/chẩn đoán để giảm truy vấn DB.
+- **Cache tin nhắn chat mới nhất:** `GetChatMessagesUseCase` cache tối đa 50 message gần nhất theo appointment khi không có tham số `after` (polling realtime thì bỏ cache).
+- **Cache điểm rating bác sĩ:** `FeedbackController.getAverageRating` lưu trung bình rating mỗi bác sĩ trong 10 phút và xóa khi có feedback mới.
+
+## 📑 Nghiệp vụ chi tiết (dựa trên mã nguồn)
+- **Auth & phân quyền:** đăng ký/login tạo JWT; logout sẽ blacklist token; filter JWT gắn `userId` vào request để controller xác định người gửi.
+- **Danh mục & lịch bác sĩ:** Admin duyệt danh mục bệnh viện/khoa/bác sĩ; bác sĩ tạo ca làm việc theo `dayOfWeek`, `startTime`, `endTime`; bệnh nhân đọc slot trống từ `available-slots`.
+- **Đặt lịch & thanh toán:** bệnh nhân đặt `appointment` kèm hospital/department/doctor; hệ thống phát sinh `queueNumber`; tạo giao dịch `payments` và đánh dấu hoàn tất (trạng thái PENDING → COMPLETED).
+- **Khám bệnh & hồ sơ:** bác sĩ tạo `medical-record`, có thể upload file, duyệt hồ sơ (đổi trạng thái `DRAFT` → `APPROVED`), và tạo `prescription` gồm danh sách thuốc/ liều.
+- **Chat & thông báo:** hai bên gửi tin nhắn qua endpoint `/chat/appointments/{id}/messages`; polling lấy toàn bộ hoặc chỉ unread; cache message giúp load nhanh lịch sử ngắn hạn.
+- **Feedback & rating:** bệnh nhân gửi đánh giá sau khám; API cung cấp danh sách feedback và trung bình rating cho bác sĩ (đã cache).
+
 ## 🗂 Cấu trúc dự án (Clean Architecture)
 ```
 src/main/java/com/chrms/
@@ -138,16 +154,16 @@ Admin:    admin@chrms.vn    / password123
 |  | GET `/doctors` | Danh sách bác sĩ | Query: `page`, `size` |
 |  | GET `/doctors/department/{departmentId}` | Bác sĩ theo khoa | Path: `departmentId` |
 |  | GET `/doctors/hospital/{hospitalId}` | Bác sĩ theo bệnh viện | Path: `hospitalId` |
-| Schedule | POST `/doctors/schedules` | Bác sĩ tạo lịch làm việc | `{ "doctorId", "date" (YYYY-MM-DD), "startTime", "endTime" }` |
+| Schedule | POST `/doctors/schedules` | Bác sĩ tạo lịch làm việc | `{ "doctorId", "dayOfWeek" (1=Mon..7=Sun), "startTime" (HH:mm:ss), "endTime" (HH:mm:ss), "isAvailable"? }` |
 |  | GET `/doctors/{doctorId}/available-slots` | Slot trống cho đặt lịch | Query: `date=YYYY-MM-DD` |
-| Appointment | POST `/patients/appointments` | Bệnh nhân đặt lịch | `{ "patientId", "doctorId", "scheduleId", "appointmentDate" }` |
+| Appointment | POST `/patients/appointments` | Bệnh nhân đặt lịch | `{ "doctorId", "hospitalId", "departmentId", "appointmentDate" (YYYY-MM-DD), "appointmentTime" (HH:mm), "notes"? }` |
 | Payment | POST `/payments` | Tạo giao dịch | `{ "appointmentId", "paymentMethod" }` |
 |  | POST `/payments/{transactionRef}/complete` | Hoàn tất giao dịch | Path: `transactionRef` |
 | Medical Record | POST `/medical-records` | Bác sĩ tạo hồ sơ | `{ "appointmentId", "diagnosis", "notes" }` |
 |  | POST `/medical-records/{id}/approve` | Duyệt hồ sơ | Path: `id` |
 | File | POST `/medical-records/files/upload` | Upload file hồ sơ | multipart: `medicalRecordId`, `file`, `fileType` |
 | Prescription | POST `/prescriptions` | Tạo đơn thuốc | `{ "medicalRecordId", "medicines"[] }` |
-| Chat | POST `/chat/appointments/{appointmentId}/messages` | Gửi chat | `{ "senderId", "content" }` |
+| Chat | POST `/chat/appointments/{appointmentId}/messages` | Gửi chat | `{ "message" }` (lấy `userId` từ JWT) |
 | Feedback | POST `/feedback` | Bệnh nhân gửi đánh giá | `{ "appointmentId", "rating", "comment" }` |
 
 > Đầy đủ 29 endpoint: xem [API_SUMMARY.md](API_SUMMARY.md) hoặc Swagger UI.
@@ -157,6 +173,12 @@ Admin:    admin@chrms.vn    / password123
 2) **Bác sĩ khám & ra đơn:** Login bác sĩ → `POST /doctors/schedules` → sau khi có appointment → `POST /medical-records` → upload file → `POST /medical-records/{id}/approve` → `POST /prescriptions`.
 3) **Chat:** Hai phía gửi `POST /chat/appointments/{id}/messages`; FE poll `GET /chat/appointments/{id}/messages?after=<time>` hoặc `GET .../unread`.
 4) **Feedback:** Patient sau khám → `POST /feedback` → hiển thị `GET /feedback/doctor/{doctorId}` và `.../average-rating`.
+
+### 🔧 Mức độ hoàn thiện & cần bổ sung
+- **Thanh toán còn giả lập:** số tiền luôn mặc định `500000` thay vì lấy phí khám của bác sĩ/appointment; chưa có tích hợp cổng thanh toán thực tế hay webhook xác nhận.
+- **Lưu file cục bộ:** upload lưu vào thư mục `${app.upload.dir}` (mặc định `uploads`) và tải trực tiếp từ filesystem; chưa có adapter `FileStorageService` cho S3/MinIO và chưa cấu hình antivirus/quota.
+- **Chat chỉ polling:** API `/chat/appointments/{id}/messages` và `/unread` dùng HTTP polling, chưa có WebSocket/push notification nên trải nghiệm realtime còn hạn chế.
+- **Bảo mật/ops:** chưa thấy cơ chế refresh token, giới hạn request hoặc audit log chi tiết; khi triển khai production cần bổ sung rate-limit, theo dõi bảo mật và cấu hình backup/observability.
 
 ### 🎨 Gợi ý cho FE
 - **Trang đặt lịch:** dùng `/hospitals`, `/doctors/department/{id}`, `/doctors/{doctorId}/available-slots`; submit `/patients/appointments`.

@@ -19,5 +19,7 @@ public class CreatePaymentRequest {
     private String paymentMethod; // VNPAY, CASH, CARD
 
     private String transactionRef; // Optional, will be generated if not provided
+
+    private String returnUrl; // Optional custom return/callback URL
 }
 

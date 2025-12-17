@@ -2,6 +2,7 @@ package com.chrms.application.usecase.patient;
 
 import com.chrms.application.dto.command.BookAppointmentCommand;
 import com.chrms.application.dto.result.AppointmentResult;
+import com.chrms.application.port.out.EmailService;
 import com.chrms.domain.entity.Appointment;
 import com.chrms.domain.entity.Department;
 import com.chrms.domain.entity.Doctor;
@@ -37,6 +38,7 @@ public class BookAppointmentUseCase {
     private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
     private final DoctorScheduleRepository scheduleRepository;
+    private final EmailService emailService;
 
     @Transactional
     public AppointmentResult execute(BookAppointmentCommand command) {
@@ -145,6 +147,17 @@ public class BookAppointmentUseCase {
         // Get user details for response
         User patientUser = userRepository.findById(patient.getUserId()).orElse(null);
         User doctorUser = userRepository.findById(doctor.getUserId()).orElse(null);
+
+        if (patientUser != null && patientUser.getEmail() != null) {
+            String doctorName = doctorUser != null ? doctorUser.getFullName() : "bác sĩ";
+            String dateTimeText = String.format("%s %s", command.getAppointmentDate(), normalizedAppointmentTime);
+            emailService.sendAppointmentConfirmation(
+                    patientUser.getEmail(),
+                    patientUser.getFullName(),
+                    doctorName,
+                    dateTimeText
+            );
+        }
 
         return AppointmentResult.builder()
                 .id(savedAppointment.getId())
