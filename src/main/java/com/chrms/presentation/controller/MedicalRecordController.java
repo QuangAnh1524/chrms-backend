@@ -4,9 +4,11 @@ import com.chrms.application.dto.command.CreateMedicalRecordCommand;
 import com.chrms.application.dto.result.MedicalRecordResult;
 import com.chrms.application.usecase.doctor.ApproveMedicalRecordUseCase;
 import com.chrms.application.usecase.doctor.CreateMedicalRecordUseCase;
+import com.chrms.application.usecase.doctor.UpdateMedicalRecordUseCase;
 import com.chrms.domain.entity.MedicalRecord;
 import com.chrms.domain.repository.MedicalRecordRepository;
 import com.chrms.presentation.dto.request.CreateMedicalRecordRequest;
+import com.chrms.presentation.dto.request.UpdateMedicalRecordRequest;
 import com.chrms.presentation.dto.response.ApiResponse;
 import com.chrms.presentation.dto.response.MedicalRecordResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +31,7 @@ public class MedicalRecordController {
 
     private final CreateMedicalRecordUseCase createRecordUseCase;
     private final ApproveMedicalRecordUseCase approveRecordUseCase;
+    private final UpdateMedicalRecordUseCase updateMedicalRecordUseCase;
     private final MedicalRecordRepository recordRepository;
 
     @PostMapping
@@ -85,6 +88,40 @@ public class MedicalRecordController {
                 .build();
 
         return ApiResponse.success("Medical record approved successfully", response);
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(summary = "Update draft medical record", description = "Update a medical record while it is still in draft status")
+    public ApiResponse<MedicalRecordResponse> updateRecord(
+            @PathVariable Long id,
+            @RequestBody UpdateMedicalRecordRequest request) {
+
+        MedicalRecord updates = MedicalRecord.builder()
+                .symptoms(request.getSymptoms())
+                .diagnosis(request.getDiagnosis())
+                .treatment(request.getTreatment())
+                .notes(request.getNotes())
+                .build();
+
+        MedicalRecord record = updateMedicalRecordUseCase.execute(id, updates);
+
+        MedicalRecordResponse response = MedicalRecordResponse.builder()
+                .id(record.getId())
+                .patientId(record.getPatientId())
+                .doctorId(record.getDoctorId())
+                .hospitalId(record.getHospitalId())
+                .appointmentId(record.getAppointmentId())
+                .symptoms(record.getSymptoms())
+                .diagnosis(record.getDiagnosis())
+                .treatment(record.getTreatment())
+                .status(record.getStatus())
+                .recordDate(record.getRecordDate())
+                .notes(record.getNotes())
+                .createdAt(record.getCreatedAt())
+                .updatedAt(record.getUpdatedAt())
+                .build();
+
+        return ApiResponse.success("Medical record updated successfully", response);
     }
 
     @GetMapping("/patient/{patientId}")

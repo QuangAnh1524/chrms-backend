@@ -46,8 +46,8 @@ public class ChatMessageRepositoryAdapter implements ChatMessageRepository {
     }
 
     @Override
-    public void markAsRead(Long messageId) {
-        jpaRepository.markAsRead(messageId);
+    public void markAsReadUpTo(Long appointmentId, Long userId, Long upToMessageId, LocalDateTime upToDatetime) {
+        jpaRepository.markAsReadUpTo(appointmentId, userId, upToMessageId, upToDatetime);
     }
 
     private ChatMessage toDomain(ChatMessageJpaEntity entity) {

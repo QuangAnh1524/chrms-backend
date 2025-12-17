@@ -2,13 +2,19 @@ package com.chrms.presentation.controller;
 
 import com.chrms.application.dto.result.AppointmentResult;
 import com.chrms.application.usecase.patient.BookAppointmentUseCase;
+import com.chrms.application.dto.command.UpdatePatientProfileCommand;
+import com.chrms.application.dto.result.PatientProfileResult;
 import com.chrms.application.usecase.patient.GetPatientAppointmentsUseCase;
+import com.chrms.application.usecase.patient.GetPatientProfileUseCase;
+import com.chrms.application.usecase.patient.UpdatePatientProfileUseCase;
 import com.chrms.domain.entity.Patient;
 import com.chrms.domain.exception.EntityNotFoundException;
 import com.chrms.domain.repository.PatientRepository;
 import com.chrms.presentation.dto.request.BookAppointmentRequest;
+import com.chrms.presentation.dto.request.UpdatePatientProfileRequest;
 import com.chrms.presentation.dto.response.ApiResponse;
 import com.chrms.presentation.dto.response.AppointmentResponse;
+import com.chrms.presentation.dto.response.PatientProfileResponse;
 import com.chrms.presentation.mapper.AppointmentMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -30,8 +36,73 @@ public class PatientController {
 
     private final BookAppointmentUseCase bookAppointmentUseCase;
     private final GetPatientAppointmentsUseCase getPatientAppointmentsUseCase;
+    private final GetPatientProfileUseCase getPatientProfileUseCase;
+    private final UpdatePatientProfileUseCase updatePatientProfileUseCase;
     private final PatientRepository patientRepository;
     private final AppointmentMapper appointmentMapper;
+
+    @GetMapping("/me")
+    @Operation(summary = "Get my profile", description = "Get authenticated patient's profile")
+    public ApiResponse<PatientProfileResponse> getMyProfile(HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        PatientProfileResult result = getPatientProfileUseCase.execute(userId);
+
+        PatientProfileResponse response = PatientProfileResponse.builder()
+                .patientId(result.getPatientId())
+                .userId(result.getUserId())
+                .fullName(result.getFullName())
+                .phone(result.getPhone())
+                .dateOfBirth(result.getDateOfBirth())
+                .gender(result.getGender())
+                .address(result.getAddress())
+                .emergencyContact(result.getEmergencyContact())
+                .bloodType(result.getBloodType())
+                .allergies(result.getAllergies())
+                .createdAt(result.getCreatedAt())
+                .updatedAt(result.getUpdatedAt())
+                .build();
+
+        return ApiResponse.success(response);
+    }
+
+    @PatchMapping("/me")
+    @Operation(summary = "Update my profile", description = "Update authenticated patient's profile")
+    public ApiResponse<PatientProfileResponse> updateMyProfile(
+            @RequestBody UpdatePatientProfileRequest request,
+            HttpServletRequest httpRequest) {
+
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        UpdatePatientProfileCommand command = UpdatePatientProfileCommand.builder()
+                .userId(userId)
+                .fullName(request.getFullName())
+                .phone(request.getPhone())
+                .dateOfBirth(request.getDob())
+                .gender(request.getGender())
+                .address(request.getAddress())
+                .emergencyContact(request.getEmergencyContact())
+                .bloodType(request.getBloodType())
+                .allergies(request.getAllergies())
+                .build();
+
+        PatientProfileResult result = updatePatientProfileUseCase.execute(command);
+
+        PatientProfileResponse response = PatientProfileResponse.builder()
+                .patientId(result.getPatientId())
+                .userId(result.getUserId())
+                .fullName(result.getFullName())
+                .phone(result.getPhone())
+                .dateOfBirth(result.getDateOfBirth())
+                .gender(result.getGender())
+                .address(result.getAddress())
+                .emergencyContact(result.getEmergencyContact())
+                .bloodType(result.getBloodType())
+                .allergies(result.getAllergies())
+                .createdAt(result.getCreatedAt())
+                .updatedAt(result.getUpdatedAt())
+                .build();
+
+        return ApiResponse.success("Profile updated successfully", response);
+    }
 
     @PostMapping("/appointments")
     @ResponseStatus(HttpStatus.CREATED)

@@ -22,9 +22,17 @@ public interface ChatMessageJpaRepository extends JpaRepository<ChatMessageJpaEn
         @Param("appointmentId") Long appointmentId,
         @Param("userId") Long userId
     );
-    
+
     @Modifying
-    @Query("UPDATE ChatMessageJpaEntity m SET m.isRead = true WHERE m.id = :messageId")
-    void markAsRead(@Param("messageId") Long messageId);
+    @Query("UPDATE ChatMessageJpaEntity m SET m.isRead = true " +
+           "WHERE m.appointmentId = :appointmentId AND m.senderId <> :userId AND m.isRead = false " +
+           "AND (:upToMessageId IS NULL OR m.id <= :upToMessageId) " +
+           "AND (:upToDatetime IS NULL OR m.createdAt <= :upToDatetime)")
+    void markAsReadUpTo(
+            @Param("appointmentId") Long appointmentId,
+            @Param("userId") Long userId,
+            @Param("upToMessageId") Long upToMessageId,
+            @Param("upToDatetime") LocalDateTime upToDatetime
+    );
 }
 
