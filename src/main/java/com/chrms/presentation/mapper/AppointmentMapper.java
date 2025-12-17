@@ -14,9 +14,9 @@ public class AppointmentMapper {
                 .patientId(patientId)
                 .doctorId(request.getDoctorId())
                 .hospitalId(request.getHospitalId())
+                .departmentId(request.getDepartmentId())
                 .appointmentDate(request.getAppointmentDate())
                 .appointmentTime(request.getAppointmentTime())
-                .symptoms(request.getSymptoms())
                 .notes(request.getNotes())
                 .build();
     }
@@ -30,10 +30,12 @@ public class AppointmentMapper {
                 .doctorName(result.getDoctorName())
                 .hospitalId(result.getHospitalId())
                 .hospitalName(result.getHospitalName())
+                .departmentId(result.getDepartmentId())
+                .departmentName(result.getDepartmentName())
                 .appointmentDate(result.getAppointmentDate())
                 .appointmentTime(result.getAppointmentTime())
+                .queueNumber(result.getQueueNumber())
                 .status(result.getStatus())
-                .symptoms(result.getSymptoms())
                 .notes(result.getNotes())
                 .createdAt(result.getCreatedAt())
                 .build();

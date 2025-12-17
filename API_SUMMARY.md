@@ -20,51 +20,55 @@ Base URL: `http://localhost:8080/api/v1`
 9. `GET /doctors/{doctorId}/schedules` - Get doctor schedules
 10. `GET /doctors/{doctorId}/available-slots?date={date}` - Get available time slots
 
-### 📋 Appointments (1 endpoint)
-11. `POST /patients/appointments` - Book appointment
+### 📋 Appointments (3 endpoints)
+11. `POST /patients/appointments` - Book appointment (chọn khoa, giờ chính xác tới phút, trả số thứ tự)
+12. `GET /patients/appointments/upcoming` - Lấy lịch hẹn sắp tới của bệnh nhân đã đăng nhập
+13. `GET /patients/appointments/history` - Lấy lịch sử lịch hẹn của bệnh nhân đã đăng nhập
 
 ### 💊 Prescriptions (2 endpoints)
-12. `POST /prescriptions` - Create prescription
-13. `GET /prescriptions/medical-record/{medicalRecordId}` - Get prescription by medical record
+14. `POST /prescriptions` - Create prescription
+15. `GET /prescriptions/medical-record/{medicalRecordId}` - Get prescription by medical record
 
 ### 📎 Medical Record Files (3 endpoints)
-14. `POST /medical-records/files/upload` - Upload file (multipart/form-data)
-15. `GET /medical-records/files/medical-record/{medicalRecordId}` - Get files by medical record
-16. `GET /medical-records/files/{id}/download` - Download file
+16. `POST /medical-records/files/upload` - Upload file (multipart/form-data)
+17. `GET /medical-records/files/medical-record/{medicalRecordId}` - Get files by medical record
+18. `GET /medical-records/files/{id}/download` - Download file
 
 ### 💳 Payments (3 endpoints)
-17. `POST /payments` - Create payment transaction
-18. `GET /payments/appointment/{appointmentId}` - Get payments by appointment
-19. `POST /payments/{transactionRef}/complete` - Complete payment
+19. `POST /payments` - Create payment transaction
+20. `GET /payments/appointment/{appointmentId}` - Get payments by appointment
+21. `POST /payments/{transactionRef}/complete` - Complete payment
 
 ### 📝 Medical Records (4 endpoints)
-20. `POST /medical-records` - Create medical record
-21. `POST /medical-records/{id}/approve` - Approve medical record
-22. `GET /medical-records/patient/{patientId}` - Get records by patient
-23. `GET /medical-records/{id}` - Get record by ID
+22. `POST /medical-records` - Create medical record
+23. `POST /medical-records/{id}/approve` - Approve medical record
+24. `GET /medical-records/patient/{patientId}` - Get records by patient
+25. `GET /medical-records/{id}` - Get record by ID
 
 ### 💬 Chat Messages (3 endpoints - Polling-based)
-24. `POST /chat/appointments/{appointmentId}/messages` - Send message
-25. `GET /chat/appointments/{appointmentId}/messages?after={datetime}` - Get messages (polling)
-26. `GET /chat/appointments/{appointmentId}/messages/unread` - Get unread messages (polling)
+26. `POST /chat/appointments/{appointmentId}/messages` - Send message
+27. `GET /chat/appointments/{appointmentId}/messages?after={datetime}` - Get messages (polling)
+28. `GET /chat/appointments/{appointmentId}/messages/unread` - Get unread messages (polling)
 
 ### ⭐ Feedback (3 endpoints)
-27. `POST /feedback` - Submit feedback
-28. `GET /feedback/doctor/{doctorId}` - Get feedback by doctor
-29. `GET /feedback/doctor/{doctorId}/average-rating` - Get average rating
+29. `POST /feedback` - Submit feedback
+30. `GET /feedback/doctor/{doctorId}` - Get feedback by doctor
+31. `GET /feedback/doctor/{doctorId}/average-rating` - Get average rating
 
 ---
 
 ## 🎯 Quick Test Scenarios
 
 ### Scenario 1: Patient Books Appointment
-1. Register Patient → Get token
+1. Register Patient → Get token (có thể bỏ trống thông tin nhân khẩu, bổ sung sau)
 2. Get Hospitals
-3. Get Doctors
-4. Get Available Slots
-5. Book Appointment
-6. Create Payment
-7. Complete Payment
+3. Get Doctors (lọc theo khoa/bệnh viện nếu cần)
+4. Get Available Slots (chọn giờ tới **phút**)
+5. Book Appointment (kèm `departmentId`, trả về `queueNumber`)
+6. [Tùy chọn] Kiểm tra `GET /patients/appointments/upcoming` để thấy lịch mới đặt
+7. Create Payment
+8. Complete Payment
+9. Sau khám, lịch sẽ sang lịch sử: `GET /patients/appointments/history`
 
 ### Scenario 2: Doctor Creates Record
 1. Register Doctor → Get token
@@ -92,21 +96,23 @@ Base URL: `http://localhost:8080/api/v1`
 1. **JWT Token**: Required for all endpoints except `/auth/register` and `/auth/login`
    - Header: `Authorization: Bearer {token}`
 
-2. **File Upload**: Use `multipart/form-data` with fields:
+2. **Thông tin bệnh nhân khi đăng ký**: Với role PATIENT, các trường ngày sinh/giới tính/địa chỉ/liên hệ khẩn cấp/nhóm máu/dị ứng có thể bỏ trống; bổ sung sau khi hoàn thiện hồ sơ.
+
+3. **File Upload**: Use `multipart/form-data` with fields:
    - `medicalRecordId` (number)
    - `file` (file)
    - `fileType` (enum: XRAY, LAB_RESULT, SCAN, OTHER)
 
-3. **Polling**: For chat messages, poll every 10 seconds:
+4. **Polling**: For chat messages, poll every 10 seconds:
    - Use `after` parameter to get only new messages
    - Or use `/unread` endpoint
 
-4. **Date/Time Formats**:
-   - Date: `YYYY-MM-DD` (e.g., `2025-12-10`)
-   - Time: `HH:mm:ss` (e.g., `09:00:00`)
-   - DateTime: `YYYY-MM-DDTHH:mm:ss` (e.g., `2025-12-03T10:00:00`)
+5. **Date/Time Formats**:
+   - Date: `YYYY-MM-DD` (ví dụ `2025-12-10`)
+   - Time: `HH:mm` (ví dụ `09:00`)
+   - DateTime: `YYYY-MM-DDTHH:mm:ss` (ví dụ `2025-12-03T10:00:00`)
 
-5. **Enums**:
+6. **Enums**:
    - `role`: PATIENT, DOCTOR, ADMIN
    - `gender`: MALE, FEMALE, OTHER
    - `fileType`: XRAY, LAB_RESULT, SCAN, OTHER
@@ -182,5 +188,5 @@ Base URL: `http://localhost:8080/api/v1`
 
 ---
 
-**Total: 29 API Endpoints** ✅
+**Total: 31 API Endpoints** ✅
 

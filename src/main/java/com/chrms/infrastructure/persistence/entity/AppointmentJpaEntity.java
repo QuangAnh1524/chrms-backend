@@ -34,6 +34,9 @@ public class AppointmentJpaEntity {
     @Column(name = "hospital_id", nullable = false)
     private Long hospitalId;
 
+    @Column(name = "department_id")
+    private Long departmentId;
+
     @Column(name = "appointment_date", nullable = false)
     private LocalDate appointmentDate;
 
@@ -44,8 +47,8 @@ public class AppointmentJpaEntity {
     @Column(nullable = false, length = 20)
     private AppointmentStatus status;
 
-    @Column(columnDefinition = "TEXT")
-    private String symptoms;
+    @Column(name = "queue_number")
+    private Integer queueNumber;
 
     @Column(columnDefinition = "TEXT")
     private String notes;

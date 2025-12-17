@@ -16,8 +16,8 @@ public class BookAppointmentCommand {
     private Long patientId;
     private Long doctorId;
     private Long hospitalId;
+    private Long departmentId;
     private LocalDate appointmentDate;
     private LocalTime appointmentTime;
-    private String symptoms;
     private String notes;
 }

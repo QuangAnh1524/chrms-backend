@@ -11,9 +11,11 @@ public interface AppointmentRepository {
     Appointment save(Appointment appointment);
     Optional<Appointment> findById(Long id);
     List<Appointment> findByPatientId(Long patientId);
+    List<Appointment> findByPatientIdAndDate(Long patientId, LocalDate date);
     List<Appointment> findByDoctorId(Long doctorId);
     List<Appointment> findByDoctorIdAndDate(Long doctorId, LocalDate date);
     List<Appointment> findByStatus(AppointmentStatus status);
+    long countByDoctorIdAndHospitalIdAndDate(Long doctorId, Long hospitalId, LocalDate date);
     List<Appointment> findAll();
     void deleteById(Long id);
 }
