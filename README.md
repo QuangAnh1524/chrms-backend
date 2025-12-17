@@ -151,7 +151,9 @@ Admin:    admin@chrms.vn    / password123
 | Auth | POST `/auth/register` | Đăng ký user (role = PATIENT/DOCTOR/ADMIN) | `{ "email", "password", "role", "fullName" }` |
 |  | POST `/auth/login` | Lấy JWT | `{ "email", "password" }` → trả token |
 | Hospital/Doctor | GET `/hospitals` | Danh sách bệnh viện | — |
+|  | GET `/hospitals/{id}` | Chi tiết bệnh viện | Path: `id` |
 |  | GET `/doctors` | Danh sách bác sĩ | Query: `page`, `size` |
+|  | GET `/doctors/{id}` | Chi tiết bác sĩ | Path: `id` |
 |  | GET `/doctors/department/{departmentId}` | Bác sĩ theo khoa | Path: `departmentId` |
 |  | GET `/doctors/hospital/{hospitalId}` | Bác sĩ theo bệnh viện | Path: `hospitalId` |
 | Schedule | POST `/doctors/schedules` | Bác sĩ tạo lịch làm việc | `{ "doctorId", "dayOfWeek" (1=Mon..7=Sun), "startTime" (HH:mm:ss), "endTime" (HH:mm:ss), "isAvailable"? }` |
@@ -166,7 +168,7 @@ Admin:    admin@chrms.vn    / password123
 | Chat | POST `/chat/appointments/{appointmentId}/messages` | Gửi chat | `{ "message" }` (lấy `userId` từ JWT) |
 | Feedback | POST `/feedback` | Bệnh nhân gửi đánh giá | `{ "appointmentId", "rating", "comment" }` |
 
-> Đầy đủ 31 endpoint: xem [API_SUMMARY.md](API_SUMMARY.md) hoặc Swagger UI.
+> Đầy đủ 33 endpoint: xem [API_SUMMARY.md](API_SUMMARY.md) hoặc Swagger UI.
 
 ### 🔄 Chuỗi workflow mẫu (tóm tắt)
 1) **Bệnh nhân đặt lịch + thanh toán:** Login → lấy `available-slots` → `POST /patients/appointments` → `POST /payments` → `POST /payments/{ref}/complete`.
@@ -188,7 +190,7 @@ Admin:    admin@chrms.vn    / password123
 - `GET /prescriptions/medical-record/{medicalRecordId}`: hiển thị chi tiết đơn thuốc sau khi bác sĩ kê đơn.
 
 ### ✉️ Email & thanh toán
-- **Email thông báo:** `BookAppointmentUseCase` gửi email xác nhận lịch khám cho bệnh nhân nếu có địa chỉ email, nội dung dựng từ `EmailService` và gửi qua `JavaMailSender` (có log cảnh báo nếu gửi lỗi).
+- **Email thông báo:** `BookAppointmentUseCase` gửi email xác nhận lịch khám cho bệnh nhân nếu có địa chỉ email, nội dung dựng từ `EmailService` và gửi qua `JavaMailSender` (có log cảnh báo nếu gửi lỗi). Không có API thủ công để gửi email: hệ thống tự gửi khi đặt lịch thành công (và có thể mở rộng thêm flow duyệt hồ sơ).
 - **Chi tiết thanh toán:** `CreatePaymentTransactionUseCase` tính phí mặc định `500000` VND, gọi `PaymentGatewayClient` khi phương thức khác CASH để tạo `transactionRef`/`paymentUrl`, sau đó lưu `PaymentTransaction` với trạng thái `PENDING` và cho phép cập nhật sang `COMPLETED` khi nhận callback/bấm complete.
 
 ### 🎨 Gợi ý cho FE
