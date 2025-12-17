@@ -10,21 +10,21 @@ fi
 # Defaults (override via env var)
 BASE_URL=${BASE_URL:-"http://localhost:8080/api/v1"}
 LOG_FILE=${LOG_FILE:-"./artifacts/api-flow-$(date +%Y%m%d-%H%M%S).log"}
-ADMIN_EMAIL=${ADMIN_EMAIL:-"admin@chrms.vn"}
+ADMIN_EMAIL=${ADMIN_EMAIL:-"admintest@test.com"}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:-"password123"}
-PATIENT_EMAIL=${PATIENT_EMAIL:-"patient1@test.com"}
+PATIENT_EMAIL=${PATIENT_EMAIL:-"patient5@test.com"}
 PATIENT_PASSWORD=${PATIENT_PASSWORD:-"password123"}
-DOCTOR_EMAIL=${DOCTOR_EMAIL:-"doctor1@test.com"}
+DOCTOR_EMAIL=${DOCTOR_EMAIL:-"doctor@test.com"}
 DOCTOR_PASSWORD=${DOCTOR_PASSWORD:-"password123"}
 HOSPITAL_ID=${HOSPITAL_ID:-1}
 DOCTOR_ID=${DOCTOR_ID:-1}
 DEPARTMENT_ID=${DEPARTMENT_ID:-1}
 APPOINTMENT_DATE=${APPOINTMENT_DATE:-$($PYTHON_BIN - <<'PY'
 from datetime import datetime, timedelta
-print((datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"))
+print((datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"))
 PY
 )}
-APPOINTMENT_TIME_INPUT=${APPOINTMENT_TIME:-"09:00"}
+APPOINTMENT_TIME_INPUT=${APPOINTMENT_TIME:-"7:00"}
 APPOINTMENT_TIME=$($PYTHON_BIN - <<PY
 from datetime import datetime
 print(datetime.strptime("${APPOINTMENT_TIME_INPUT}", "%H:%M").strftime("%H:%M"))
@@ -40,14 +40,14 @@ from datetime import datetime, timedelta
 print((datetime.strptime("${APPOINTMENT_TIME_INPUT}", "%H:%M") + timedelta(hours=1)).strftime("%H:%M:%S"))
 PY
 )
-CHAT_MESSAGE=${CHAT_MESSAGE:-"Xin chào bác sĩ"}
+CHAT_MESSAGE=${CHAT_MESSAGE:-"Xin chao doctor"}
 
 usage() {
   cat <<USAGE
 Usage: BASE_URL=http://localhost:8080/api/v1 LOG_FILE=./artifacts/flow.log \\
-       ADMIN_EMAIL=admin@chrms.vn ADMIN_PASSWORD=password123 \\
-       PATIENT_EMAIL=patient1@test.com PATIENT_PASSWORD=password123 \\
-       DOCTOR_EMAIL=doctor1@test.com DOCTOR_PASSWORD=password123 \\
+       ADMIN_EMAIL=admintest@test.com ADMIN_PASSWORD=password123 \\
+       PATIENT_EMAIL=patient5@test.com PATIENT_PASSWORD=password123 \\
+       DOCTOR_EMAIL=doctor@test.com DOCTOR_PASSWORD=password123 \\
        HOSPITAL_ID=1 DEPARTMENT_ID=1 DOCTOR_ID=1 \\
        APPOINTMENT_DATE=2025-01-01 APPOINTMENT_TIME=09:00 \\
        bash scripts/run_full_api_flow.sh
@@ -75,7 +75,7 @@ require "$PYTHON_BIN"
 mkdir -p "$(dirname "$LOG_FILE")"
 : > "$LOG_FILE"
 
-info() { echo "$*" | tee -a "$LOG_FILE"; }
+info() { echo "$*" | tee -a "$LOG_FILE" >&2; }
 
 hr() { info "============================================================"; }
 
@@ -182,7 +182,7 @@ schedule_body=$(cat <<JSON
 }
 JSON
 )
-call_api "Doctor" "POST" "/doctors/schedules" "$schedule_body" "$DOCTOR_TOKEN" 200 >/dev/null
+call_api "Doctor" "POST" "/doctors/schedules" "$schedule_body" "$DOCTOR_TOKEN" 201 >/dev/null
 
 # 4) Patient inspects available slots
 call_api "Patient" "GET" "/doctors/${DOCTOR_ID}/available-slots?date=${APPOINTMENT_DATE}" "" "$PATIENT_TOKEN" 200 >/dev/null
@@ -221,10 +221,10 @@ call_api "Patient" "POST" "/payments/${TRANSACTION_REF}/complete" "" "$PATIENT_T
 record_body=$(cat <<JSON
 {
   "appointmentId": $APPOINTMENT_ID,
-  "symptoms": "Đau đầu, sốt nhẹ",
-  "diagnosis": "Viêm phế quản cấp",
-  "treatment": "Nghỉ ngơi, uống nhiều nước, dùng thuốc kháng sinh",
-  "notes": "Theo dõi nhiệt độ mỗi 6 giờ"
+  "symptoms": "DAU DAU SOT NHE",
+  "diagnosis": "viem phe quan",
+  "treatment": "nghi ngoi, uong nhieu nuoc, dung thuoc khang sinh",
+  "notes": "theo doi nhiet do moi 6h"
 }
 JSON
 )
@@ -237,8 +237,8 @@ prescription_body=$(cat <<JSON
 {
   "medicalRecordId": $RECORD_ID,
   "items": [
-    {"medicineId": 1, "dosage": "500mg", "frequency": "2 lần/ngày", "duration": "7 ngày", "quantity": 14, "instructions": "Uống sau khi ăn"},
-    {"medicineId": 2, "dosage": "200mg", "frequency": "3 lần/ngày", "duration": "5 ngày", "quantity": 15, "instructions": "Uống trước khi ăn"}
+    {"medicineId": 1, "dosage": "500mg", "frequency": "2 lan/ngay", "duration": "7 ngay", "quantity": 14, "instructions": "Uong sau khi an"},
+    {"medicineId": 2, "dosage": "200mg", "frequency": "3 lan/ngay", "duration": "5 ngay", "quantity": 15, "instructions": "Uong truoc khi an"}
   ]
 }
 JSON
@@ -246,13 +246,14 @@ JSON
 call_api "Doctor" "POST" "/prescriptions" "$prescription_body" "$DOCTOR_TOKEN" 201 >/dev/null
 
 # 10) Chat and feedback
-call_api "Patient" "POST" "/chat/appointments/${APPOINTMENT_ID}/messages" "{\"content\":\"$CHAT_MESSAGE\"}" "$PATIENT_TOKEN" 200 >/dev/null
+call_api "Patient" "POST" "/chat/appointments/${APPOINTMENT_ID}/messages" "{\"message\":\"$CHAT_MESSAGE\"}" "$PATIENT_TOKEN" 201 >/dev/null
 call_api "Doctor" "GET" "/chat/appointments/${APPOINTMENT_ID}/messages/unread" "" "$DOCTOR_TOKEN" 200 >/dev/null
 feedback_body=$(cat <<JSON
 {
+  "appointmentId": $APPOINTMENT_ID,
   "doctorId": $DOCTOR_ID,
   "rating": 5,
-  "comment": "Tư vấn tận tình - script auto test"
+  "comment": "tu van tan tinh - script auto test"
 }
 JSON
 )
