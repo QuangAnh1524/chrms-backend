@@ -10,6 +10,6 @@ public interface ChatMessageRepository {
     List<ChatMessage> findByAppointmentId(Long appointmentId);
     List<ChatMessage> findByAppointmentIdAndCreatedAtAfter(Long appointmentId, LocalDateTime after);
     List<ChatMessage> findUnreadByAppointmentId(Long appointmentId, Long userId);
-    void markAsRead(Long messageId);
+    void markAsReadUpTo(Long appointmentId, Long userId, Long upToMessageId, LocalDateTime upToDatetime);
 }
 

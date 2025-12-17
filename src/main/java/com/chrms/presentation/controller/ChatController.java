@@ -1,8 +1,10 @@
 package com.chrms.presentation.controller;
 
 import com.chrms.application.usecase.shared.GetChatMessagesUseCase;
+import com.chrms.application.usecase.shared.MarkMessagesReadUseCase;
 import com.chrms.application.usecase.shared.SendChatMessageUseCase;
 import com.chrms.domain.entity.ChatMessage;
+import com.chrms.presentation.dto.request.MarkMessagesReadRequest;
 import com.chrms.presentation.dto.request.SendMessageRequest;
 import com.chrms.presentation.dto.response.ApiResponse;
 import com.chrms.presentation.dto.response.ChatMessageResponse;
@@ -29,6 +31,7 @@ public class ChatController {
 
     private final SendChatMessageUseCase sendMessageUseCase;
     private final GetChatMessagesUseCase getMessagesUseCase;
+    private final MarkMessagesReadUseCase markMessagesReadUseCase;
 
     @PostMapping("/appointments/{appointmentId}/messages")
     @ResponseStatus(HttpStatus.CREATED)
@@ -98,6 +101,22 @@ public class ChatController {
                 .collect(Collectors.toList());
         
         return ApiResponse.success(response);
+    }
+
+    @PostMapping("/appointments/{appointmentId}/messages/read")
+    @Operation(summary = "Mark messages as read", description = "Mark chat messages as read up to a point in time or message ID")
+    public ApiResponse<Void> markMessagesRead(
+            @PathVariable Long appointmentId,
+            @RequestBody(required = false) MarkMessagesReadRequest request,
+            HttpServletRequest httpRequest) {
+
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        Long upToMessageId = request != null ? request.getUpToMessageId() : null;
+        java.time.LocalDateTime upToDatetime = request != null ? request.getUpToDatetime() : null;
+
+        markMessagesReadUseCase.execute(appointmentId, userId, upToMessageId, upToDatetime);
+
+        return ApiResponse.success("Messages marked as read");
     }
 }
 
