@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 print((datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"))
 PY
 )}
-APPOINTMENT_TIME_INPUT=${APPOINTMENT_TIME:-"7:00"}
+APPOINTMENT_TIME_INPUT=${APPOINTMENT_TIME:-"1:00"}
 APPOINTMENT_TIME=$($PYTHON_BIN - <<PY
 from datetime import datetime
 print(datetime.strptime("${APPOINTMENT_TIME_INPUT}", "%H:%M").strftime("%H:%M"))
@@ -157,7 +157,8 @@ ADMIN_TOKEN=$(extract_or_fail "Admin" "$admin_login" '.data.token' 'admin token'
 
 patient_login=$(call_api "Patient" "POST" "/auth/login" "{\"email\":\"$PATIENT_EMAIL\",\"password\":\"$PATIENT_PASSWORD\"}" "" 200)
 PATIENT_TOKEN=$(extract_or_fail "Patient" "$patient_login" '.data.token' 'patient token')
-PATIENT_ID=$(extract_or_fail "Patient" "$patient_login" '.data.userId' 'patient user id')
+#PATIENT_ID=$(extract_or_fail "Patient" "$patient_login" '.data.userId' 'patient user id')
+PATIENT_USER_ID=$(extract_or_fail "Patient" "$patient_login" '.data.userId' 'patient user id')
 
 doctor_login=$(call_api "Doctor" "POST" "/auth/login" "{\"email\":\"$DOCTOR_EMAIL\",\"password\":\"$DOCTOR_PASSWORD\"}" "" 200)
 DOCTOR_TOKEN=$(extract_or_fail "Doctor" "$doctor_login" '.data.token' 'doctor token')
@@ -201,6 +202,7 @@ JSON
 )
 appointment_resp=$(call_api "Patient" "POST" "/patients/appointments" "$appointment_body" "$PATIENT_TOKEN" 201)
 APPOINTMENT_ID=$(extract_or_fail "Patient" "$appointment_resp" '.data.id' 'appointment id')
+APPOINTMENT_PATIENT_ID=$(extract_or_fail "Patient" "$appointment_resp" '.data.patientId // .data.patient.id' 'appointment patient id')
 
 # 6) Patient reviews upcoming appointments
 call_api "Patient" "GET" "/patients/appointments/upcoming" "" "$PATIENT_TOKEN" 200 >/dev/null
@@ -260,6 +262,66 @@ JSON
 call_api "Patient" "POST" "/feedback" "$feedback_body" "$PATIENT_TOKEN" 201 >/dev/null
 
 # 11) Patient fetches medical records
-call_api "Patient" "GET" "/medical-records/patient/${PATIENT_ID}" "" "$PATIENT_TOKEN" 200 >/dev/null
+#call_api "Patient" "GET" "/medical-records/patient/${PATIENT_ID}" "" "$PATIENT_TOKEN" 200 >/dev/null
+call_api "Patient" "GET" "/medical-records/patient/${APPOINTMENT_PATIENT_ID}" "" "$PATIENT_TOKEN" 200 >/dev/null
+
+# 12) Doctor schedules read-back
+call_api "Doctor" "GET" "/doctors/${DOCTOR_ID}/schedules" "" "$DOCTOR_TOKEN" 200 >/dev/null
+
+# 13) Doctor filters (dept/hospital) - smoke test
+call_api "Admin" "GET" "/doctors/department/${DEPARTMENT_ID}" "" "$ADMIN_TOKEN" 200 >/dev/null
+call_api "Admin" "GET" "/doctors/hospital/${HOSPITAL_ID}" "" "$ADMIN_TOKEN" 200 >/dev/null
+
+# 14) Payments read-back by appointment
+call_api "Patient" "GET" "/payments/appointment/${APPOINTMENT_ID}" "" "$PATIENT_TOKEN" 200 >/dev/null
+
+# 15) Medical record read-back by id (should be APPROVED)
+call_api "Patient" "GET" "/medical-records/${RECORD_ID}" "" "$PATIENT_TOKEN" 200 >/dev/null
+
+# 16) Prescription read-back by medical record
+call_api "Patient" "GET" "/prescriptions/medical-record/${RECORD_ID}" "" "$PATIENT_TOKEN" 200 >/dev/null
+
+# 17) Chat: doctor replies + polling after=
+doctor_reply=$(call_api "Doctor" "POST" "/chat/appointments/${APPOINTMENT_ID}/messages" "{\"message\":\"Da nhan duoc tin nhan, moi benh nhan toi kham.\"}" "$DOCTOR_TOKEN" 201)
+LAST_MSG_TIME=$(echo "$doctor_reply" | jq -r '.data.createdAt')
+# Poll after last message time - expect empty list (or not include the last one depending on your logic)
+call_api "Patient" "GET" "/chat/appointments/${APPOINTMENT_ID}/messages?after=${LAST_MSG_TIME}" "" "$PATIENT_TOKEN" 200 >/dev/null
+
+# 18) Feedback read-back: list + average rating
+call_api "Patient" "GET" "/feedback/doctor/${DOCTOR_ID}" "" "$PATIENT_TOKEN" 200 >/dev/null
+call_api "Patient" "GET" "/feedback/doctor/${DOCTOR_ID}/average-rating" "" "$PATIENT_TOKEN" 200 >/dev/null
+
+# 19) Medical record files (multipart upload + list + download)
+# Need curl -F, so we do a dedicated call instead of call_api()
+TMP_FILE="./artifacts/tmp_medical_record_note.txt"
+echo "CHRMS auto-test file upload - $(date)" > "$TMP_FILE"
+
+info "\n---- [Doctor] POST /medical-records/files/upload (multipart)"
+upload_resp=$(curl -sS -w "\n%{http_code}" -X POST "${BASE_URL}/medical-records/files/upload" \
+  -H "Authorization: Bearer $DOCTOR_TOKEN" \
+  -F "medicalRecordId=${RECORD_ID}" \
+  -F "fileType=OTHER" \
+  -F "file=@${TMP_FILE}")
+
+upload_status=$(echo "$upload_resp" | tail -n1)
+upload_payload=$(echo "$upload_resp" | sed '$d')
+info "Status: $upload_status"
+info "Response: $upload_payload"
+[[ "$upload_status" == "201" ]] || fail "Doctor" "$upload_status" "201" "/medical-records/files/upload" "$upload_payload"
+
+FILE_ID=$(extract_or_fail "Doctor" "$upload_payload" '.data.id' 'uploaded file id')
+
+# List files by medical record
+call_api "Patient" "GET" "/medical-records/files/medical-record/${RECORD_ID}" "" "$PATIENT_TOKEN" 200 >/dev/null
+
+# Download (binary) - just validate status 200
+info "\n---- [Patient] GET /medical-records/files/${FILE_ID}/download"
+dl_status=$(curl -sS -o /dev/null -w "%{http_code}" -X GET "${BASE_URL}/medical-records/files/${FILE_ID}/download" \
+  -H "Authorization: Bearer $PATIENT_TOKEN")
+info "Status: $dl_status"
+[[ "$dl_status" == "200" ]] || fail "Patient" "$dl_status" "200" "/medical-records/files/${FILE_ID}/download" "(binary body omitted)"
+
+# 20) Appointment history endpoint smoke test
+call_api "Patient" "GET" "/patients/appointments/history" "" "$PATIENT_TOKEN" 200 >/dev/null
 
 info "\n[OK] Flow finished. See log: $LOG_FILE"
