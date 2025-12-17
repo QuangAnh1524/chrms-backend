@@ -101,10 +101,20 @@ call_api() {
   local headers=(-H "Content-Type: application/json")
   [[ -n "$token" ]] && headers+=( -H "Authorization: Bearer $token" )
 
-  local response status_code payload
-  response=$(curl -sS -w "\n%{http_code}" -X "$method" "${BASE_URL}${path}" "${headers[@]}" ${body:+-d "$body"})
+  local response status_code payload curl_status
+  if ! response=$(curl -sS -w "\n%{http_code}" -X "$method" "${BASE_URL}${path}" "${headers[@]}" ${body:+-d "$body"}); then
+    curl_status=$?
+    echo "[ERROR] [$actor] curl failed with exit code $curl_status. Check BASE_URL ($BASE_URL) and network connectivity." | tee -a "$LOG_FILE" >&2
+    exit 1
+  fi
+
   status_code=$(echo "$response" | tail -n1)
   payload=$(echo "$response" | sed '$d')
+
+  if [[ "$status_code" == "000" ]]; then
+    echo "[ERROR] [$actor] Unable to reach API (status 000). Ensure the backend is running and accessible at $BASE_URL. On Windows, make sure Docker/WSL exposes the port." | tee -a "$LOG_FILE" >&2
+    exit 1
+  fi
 
   info "Status: $status_code"
   info "Response: $payload"
@@ -117,7 +127,11 @@ call_api() {
 extract_or_fail() {
   local actor="$1" json="$2" jq_expr="$3" label="$4"
   local value
-  value=$(echo "$json" | jq -r "$jq_expr // empty")
+  if ! value=$(echo "$json" | jq -r "$jq_expr // empty"); then
+    echo "[ERROR] [$actor] Response is not valid JSON while extracting $label" | tee -a "$LOG_FILE" >&2
+    echo "$json" | tee -a "$LOG_FILE" >&2
+    exit 1
+  fi
   if [[ -z "$value" || "$value" == "null" ]]; then
     echo "[ERROR] [$actor] Cannot extract $label" | tee -a "$LOG_FILE" >&2
     echo "$json" | tee -a "$LOG_FILE" >&2
