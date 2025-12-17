@@ -166,11 +166,29 @@ Admin:    admin@chrms.vn    / password123
 - **Trang đánh giá:** gửi `/feedback`, show `/feedback/doctor/{doctorId}` + `/average-rating`.
 
 ## 🧪 Script luồng đầy đủ (không cần Postman)
-`scripts/run_full_api_flow.sh` chạy toàn bộ Patient → Doctor → Payment → Medical Record → Prescription → Chat → Feedback và log ra file `.txt`.
+`scripts/run_full_api_flow.sh` chạy trên Bash/Git Bash/WSL/macOS/Linux (hoặc bên trong container Docker) và log ra file `.txt`.
+
+Những gì script thực hiện:
+- Đăng nhập đủ 3 vai trò (Admin/Patient/Doctor) và xác nhận token.
+- Admin: rà soát danh mục bệnh viện/bác sĩ.
+- Doctor: cập nhật lịch làm việc (theo `dayOfWeek`, giờ bắt đầu/kết thúc chuẩn `HH:mm:ss`).
+- Patient: xem slot trống, đặt lịch (bắt buộc `departmentId`, giờ chuẩn `HH:mm`), xem lịch sắp tới.
+- Payment: tạo giao dịch, đánh dấu hoàn tất.
+- Medical record/prescription: bác sĩ tạo hồ sơ, duyệt và kê đơn.
+- Chat & feedback: bệnh nhân gửi tin nhắn, bác sĩ xem tin chưa đọc, bệnh nhân gửi đánh giá.
+
+Chạy script:
 ```bash
-# Tùy chỉnh: BASE_URL, LOG_FILE, PATIENT_EMAIL/PASSWORD, DOCTOR_EMAIL/PASSWORD, HOSPITAL_ID, DOCTOR_ID
-$ bash scripts/run_full_api_flow.sh
-$ bash scripts/run_full_api_flow.sh --help
+# Biến môi trường tuỳ chỉnh (đã có mặc định seed):
+# BASE_URL=http://localhost:8080/api/v1
+# ADMIN_EMAIL=admin@chrms.vn ADMIN_PASSWORD=password123
+# PATIENT_EMAIL=patient1@test.com PATIENT_PASSWORD=password123
+# DOCTOR_EMAIL=doctor1@test.com DOCTOR_PASSWORD=password123
+# HOSPITAL_ID=1 DEPARTMENT_ID=1 DOCTOR_ID=1
+# APPOINTMENT_DATE=2025-01-01 APPOINTMENT_TIME=09:00
+
+$ bash scripts/run_full_api_flow.sh          # chạy mặc định
+$ bash scripts/run_full_api_flow.sh --help   # xem hướng dẫn
 ```
 
 ## 🗃 Cơ sở dữ liệu

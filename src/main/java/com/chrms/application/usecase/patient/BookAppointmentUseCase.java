@@ -3,6 +3,7 @@ package com.chrms.application.usecase.patient;
 import com.chrms.application.dto.command.BookAppointmentCommand;
 import com.chrms.application.dto.result.AppointmentResult;
 import com.chrms.domain.entity.Appointment;
+import com.chrms.domain.entity.Department;
 import com.chrms.domain.entity.Doctor;
 import com.chrms.domain.entity.Hospital;
 import com.chrms.domain.entity.Patient;
@@ -11,6 +12,7 @@ import com.chrms.domain.enums.AppointmentStatus;
 import com.chrms.domain.exception.BusinessRuleViolationException;
 import com.chrms.domain.exception.EntityNotFoundException;
 import com.chrms.domain.repository.AppointmentRepository;
+import com.chrms.domain.repository.DepartmentRepository;
 import com.chrms.domain.repository.DoctorRepository;
 import com.chrms.domain.repository.DoctorScheduleRepository;
 import com.chrms.domain.repository.HospitalRepository;
@@ -21,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -30,6 +34,7 @@ public class BookAppointmentUseCase {
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final HospitalRepository hospitalRepository;
+    private final DepartmentRepository departmentRepository;
     private final UserRepository userRepository;
     private final DoctorScheduleRepository scheduleRepository;
 
@@ -47,16 +52,41 @@ public class BookAppointmentUseCase {
         Hospital hospital = hospitalRepository.findById(command.getHospitalId())
                 .orElseThrow(() -> new EntityNotFoundException("Hospital", command.getHospitalId()));
 
-        // Validate appointment date is not in the past
-        if (command.getAppointmentDate().isBefore(LocalDate.now())) {
-            throw new BusinessRuleViolationException("Cannot book appointment in the past");
+        if (!doctor.getHospitalId().equals(hospital.getId())) {
+            throw new BusinessRuleViolationException("Doctor is not assigned to the selected hospital");
+        }
+
+        // Validate department exists and matches doctor/hospital
+        Department department = departmentRepository.findById(command.getDepartmentId())
+                .orElseThrow(() -> new EntityNotFoundException("Department", command.getDepartmentId()));
+
+        if (!department.getHospitalId().equals(hospital.getId())) {
+            throw new BusinessRuleViolationException("Department does not belong to the selected hospital");
+        }
+
+        if (doctor.getDepartmentId() != null && !doctor.getDepartmentId().equals(department.getId())) {
+            throw new BusinessRuleViolationException("Doctor is not assigned to the selected department");
+        }
+
+        LocalTime normalizedAppointmentTime = command.getAppointmentTime()
+                .withSecond(0)
+                .withNano(0);
+
+        LocalDateTime appointmentDateTime = LocalDateTime.of(
+                command.getAppointmentDate(),
+                normalizedAppointmentTime
+        );
+
+        // Validate appointment datetime is not in the past
+        if (appointmentDateTime.isBefore(LocalDateTime.now())) {
+            throw new BusinessRuleViolationException("Appointment time must be in the future");
         }
 
         // Check if doctor is available at this time based on schedule
         boolean isAvailable = scheduleRepository.isDoctorAvailableAt(
                 command.getDoctorId(),
                 command.getAppointmentDate(),
-                command.getAppointmentTime()
+                normalizedAppointmentTime
         );
 
         if (!isAvailable) {
@@ -70,22 +100,43 @@ public class BookAppointmentUseCase {
         );
 
         boolean hasConflict = existingAppointments.stream()
-                .anyMatch(apt -> apt.getAppointmentTime().equals(command.getAppointmentTime())
+                .anyMatch(apt -> apt.getAppointmentTime().equals(normalizedAppointmentTime)
                         && apt.getStatus() != AppointmentStatus.CANCELLED);
 
         if (hasConflict) {
             throw new BusinessRuleViolationException("Doctor already has an appointment at this time");
         }
 
+        // Prevent patient from booking multiple appointments at the same time slot
+        List<Appointment> patientAppointmentsSameDay = appointmentRepository.findByPatientIdAndDate(
+                command.getPatientId(),
+                command.getAppointmentDate()
+        );
+
+        boolean patientHasConflict = patientAppointmentsSameDay.stream()
+                .filter(apt -> apt.getStatus() != AppointmentStatus.CANCELLED)
+                .anyMatch(apt -> normalizedAppointmentTime.equals(apt.getAppointmentTime()));
+
+        if (patientHasConflict) {
+            throw new BusinessRuleViolationException("You already have an appointment at this time");
+        }
+
+        int queueNumber = (int) appointmentRepository.countByDoctorIdAndHospitalIdAndDate(
+                command.getDoctorId(),
+                command.getHospitalId(),
+                command.getAppointmentDate()
+        ) + 1;
+
         // Create appointment
         Appointment appointment = Appointment.builder()
                 .patientId(command.getPatientId())
                 .doctorId(command.getDoctorId())
                 .hospitalId(command.getHospitalId())
+                .departmentId(department.getId())
                 .appointmentDate(command.getAppointmentDate())
-                .appointmentTime(command.getAppointmentTime())
+                .appointmentTime(normalizedAppointmentTime)
                 .status(AppointmentStatus.PENDING)
-                .symptoms(command.getSymptoms())
+                .queueNumber(queueNumber)
                 .notes(command.getNotes())
                 .build();
 
@@ -103,10 +154,12 @@ public class BookAppointmentUseCase {
                 .doctorName(doctorUser != null ? doctorUser.getFullName() : "Unknown")
                 .hospitalId(savedAppointment.getHospitalId())
                 .hospitalName(hospital.getName())
+                .departmentId(savedAppointment.getDepartmentId())
+                .departmentName(department.getName())
                 .appointmentDate(savedAppointment.getAppointmentDate())
                 .appointmentTime(savedAppointment.getAppointmentTime())
+                .queueNumber(savedAppointment.getQueueNumber())
                 .status(savedAppointment.getStatus())
-                .symptoms(savedAppointment.getSymptoms())
                 .notes(savedAppointment.getNotes())
                 .createdAt(savedAppointment.getCreatedAt())
                 .build();

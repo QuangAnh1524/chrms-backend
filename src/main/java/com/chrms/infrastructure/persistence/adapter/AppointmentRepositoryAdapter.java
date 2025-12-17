@@ -39,6 +39,13 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
     }
 
     @Override
+    public List<Appointment> findByPatientIdAndDate(Long patientId, LocalDate date) {
+        return jpaRepository.findByPatientIdAndAppointmentDate(patientId, date).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<Appointment> findByDoctorId(Long doctorId) {
         return jpaRepository.findByDoctorId(doctorId).stream()
                 .map(this::toDomain)
@@ -60,6 +67,11 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
     }
 
     @Override
+    public long countByDoctorIdAndHospitalIdAndDate(Long doctorId, Long hospitalId, LocalDate date) {
+        return jpaRepository.countByDoctorIdAndHospitalIdAndAppointmentDate(doctorId, hospitalId, date);
+    }
+
+    @Override
     public List<Appointment> findAll() {
         return jpaRepository.findAll().stream()
                 .map(this::toDomain)
@@ -77,10 +89,11 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
                 .patientId(entity.getPatientId())
                 .doctorId(entity.getDoctorId())
                 .hospitalId(entity.getHospitalId())
+                .departmentId(entity.getDepartmentId())
                 .appointmentDate(entity.getAppointmentDate())
                 .appointmentTime(entity.getAppointmentTime())
                 .status(entity.getStatus())
-                .symptoms(entity.getSymptoms())
+                .queueNumber(entity.getQueueNumber())
                 .notes(entity.getNotes())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -93,10 +106,11 @@ public class AppointmentRepositoryAdapter implements AppointmentRepository {
                 .patientId(domain.getPatientId())
                 .doctorId(domain.getDoctorId())
                 .hospitalId(domain.getHospitalId())
+                .departmentId(domain.getDepartmentId())
                 .appointmentDate(domain.getAppointmentDate())
                 .appointmentTime(domain.getAppointmentTime())
                 .status(domain.getStatus())
-                .symptoms(domain.getSymptoms())
+                .queueNumber(domain.getQueueNumber())
                 .notes(domain.getNotes())
                 .build();
     }

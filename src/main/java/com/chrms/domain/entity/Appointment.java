@@ -19,10 +19,11 @@ public class Appointment {
     private Long patientId;
     private Long doctorId;
     private Long hospitalId;
+    private Long departmentId;
     private LocalDate appointmentDate;
     private LocalTime appointmentTime;
     private AppointmentStatus status;
-    private String symptoms;
+    private Integer queueNumber;
     private String notes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
