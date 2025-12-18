@@ -3,6 +3,7 @@ package com.chrms.infrastructure.adapter.email;
 import com.chrms.application.port.out.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,9 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
 
+    @Value("${spring.mail.username:}")
+    private String defaultFrom;
+
     @Override
     public void sendEmail(String to, String subject, String body) {
         try {
@@ -21,7 +25,11 @@ public class EmailServiceImpl implements EmailService {
             message.setTo(to);
             message.setSubject(subject);
             message.setText(body);
+            if (defaultFrom != null && !defaultFrom.isBlank()) {
+                message.setFrom(defaultFrom);
+            }
             mailSender.send(message);
+            log.info("Sent email to {} with subject '{}'", to, subject);
         } catch (Exception ex) {
             log.warn("Failed to send email to {}: {}", to, ex.getMessage());
         }
