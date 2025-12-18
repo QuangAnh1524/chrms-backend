@@ -10,10 +10,12 @@ fi
 # Defaults (override via env var)
 BASE_URL=${BASE_URL:-"http://localhost:8080/api/v1"}
 LOG_FILE=${LOG_FILE:-"./artifacts/api-flow-$(date +%Y%m%d-%H%M%S).log"}
+AUTO_REGISTER_PATIENT=${AUTO_REGISTER_PATIENT:-"true"}
 ADMIN_EMAIL=${ADMIN_EMAIL:-"admintest@test.com"}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:-"password123"}
-PATIENT_EMAIL=${PATIENT_EMAIL:-"patient5@test.com"}
+PATIENT_EMAIL=${PATIENT_EMAIL:-"ninoel2004@gmail.com"}
 PATIENT_PASSWORD=${PATIENT_PASSWORD:-"password123"}
+PATIENT_FULL_NAME=${PATIENT_FULL_NAME:-"API Flow Patient"}
 DOCTOR_EMAIL=${DOCTOR_EMAIL:-"doctor@test.com"}
 DOCTOR_PASSWORD=${DOCTOR_PASSWORD:-"password123"}
 HOSPITAL_ID=${HOSPITAL_ID:-1}
@@ -45,8 +47,10 @@ CHAT_MESSAGE=${CHAT_MESSAGE:-"Xin chao doctor"}
 usage() {
   cat <<USAGE
 Usage: BASE_URL=http://localhost:8080/api/v1 LOG_FILE=./artifacts/flow.log \\
+       AUTO_REGISTER_PATIENT=true \\
        ADMIN_EMAIL=admintest@test.com ADMIN_PASSWORD=password123 \\
-       PATIENT_EMAIL=patient5@test.com PATIENT_PASSWORD=password123 \\
+       PATIENT_EMAIL=ninoel2004@gmail.com PATIENT_PASSWORD=password123 \\
+       PATIENT_FULL_NAME="API Flow Patient" \\
        DOCTOR_EMAIL=doctor@test.com DOCTOR_PASSWORD=password123 \\
        HOSPITAL_ID=1 DEPARTMENT_ID=1 DOCTOR_ID=1 \\
        APPOINTMENT_DATE=2025-01-01 APPOINTMENT_TIME=09:00 \\
@@ -93,7 +97,8 @@ fail() {
 }
 
 call_api() {
-  local actor="$1" method="$2" path="$3" body="$4" token="$5" expected="${6:-200}"
+  local actor="$1" method="$2" path="$3" body="$4" token="$5" expected_raw="${6:-200}"
+  IFS=',' read -r -a expected_statuses <<< "$expected_raw"
 
   info "\n---- [$actor] $method $path"
   [[ -n "$body" ]] && info "Request: $body"
@@ -119,7 +124,17 @@ call_api() {
   info "Status: $status_code"
   info "Response: $payload"
 
-  [[ "$status_code" == "$expected" ]] || fail "$actor" "$status_code" "$expected" "$path" "$payload"
+  local matched=false
+  for code in "${expected_statuses[@]}"; do
+    if [[ "$status_code" == "$code" ]]; then
+      matched=true
+      break
+    fi
+  done
+
+  [[ "$matched" == true ]] || fail "$actor" "$status_code" "$expected_raw" "$path" "$payload"
+
+  LAST_STATUS_CODE=$status_code
 
   echo "$payload"
 }
@@ -144,12 +159,33 @@ title "CHRMS end-to-end API flow"
 info "Base URL         : $BASE_URL"
 info "Log file         : $LOG_FILE"
 info "Admin account    : $ADMIN_EMAIL"
+info "Patient auto-reg : $AUTO_REGISTER_PATIENT"
 info "Patient account  : $PATIENT_EMAIL"
 info "Doctor account   : $DOCTOR_EMAIL"
 info "Hospital ID      : $HOSPITAL_ID"
 info "Department ID    : $DEPARTMENT_ID"
 info "Doctor ID        : $DOCTOR_ID"
 info "Appointment      : $APPOINTMENT_DATE $APPOINTMENT_TIME"
+
+if [[ "$AUTO_REGISTER_PATIENT" == "true" ]]; then
+  title "Register patient for email delivery (if missing)"
+  register_body=$(cat <<JSON
+{
+  "email": "$PATIENT_EMAIL",
+  "password": "$PATIENT_PASSWORD",
+  "fullName": "$PATIENT_FULL_NAME",
+  "role": "PATIENT"
+}
+JSON
+  )
+
+  register_resp=$(call_api "Public" "POST" "/auth/register" "$register_body" "" "201,400,409")
+  if [[ "$LAST_STATUS_CODE" == "201" ]]; then
+    info "Registered new patient account to trigger email notifications for $PATIENT_EMAIL"
+  else
+    info "Patient registration skipped (status $LAST_STATUS_CODE) - assuming account already exists"
+  fi
+fi
 
 # 1) Authenticate all roles
 admin_login=$(call_api "Admin" "POST" "/auth/login" "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" "" 200)
