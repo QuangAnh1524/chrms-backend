@@ -14,7 +14,7 @@ Centralized Health Record Management System (MVP) cho nền tảng y tế số H
 - **Docs:** Swagger UI, Postman collection, bảng API tóm tắt.
 
 ## ✨ Khối chức năng chính
-- **Quản lý người dùng & phân quyền:** đăng ký/đăng nhập JWT, phân vai trò; reset mật khẩu (qua flow email giả lập trong môi trường dev).
+- **Quản lý người dùng & phân quyền:** đăng ký/đăng nhập JWT, phân vai trò; gửi email xác nhận lịch khám qua SMTP (cần cấu hình `spring.mail.*`).
 - **Đặt lịch khám:** bác sĩ tạo lịch làm việc, bệnh nhân xem slot trống, đặt lịch, quản trị viên kiểm soát dữ liệu danh mục (bệnh viện, khoa, bác sĩ).
 - **Khám & hồ sơ bệnh án:** bác sĩ tạo hồ sơ, upload file cận lâm sàng, duyệt hồ sơ và phát hành đơn thuốc.
 - **Thanh toán:** tạo giao dịch, hoàn tất thanh toán theo appointment (mô phỏng, không tích hợp cổng thật trong repo này).
@@ -94,6 +94,7 @@ src/main/resources/
 **Biến môi trường quan trọng** (có giá trị mẫu trong `application-docker.yml`):
 - `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`
 - `SPRING_REDIS_HOST`, `SPRING_REDIS_PORT`
+- `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD` (SMTP gửi email xác nhận lịch)
 - `JWT_SECRET`, `JWT_EXPIRATION_MINUTES`
 - `FILE_STORAGE_PATH` (thư mục mount trong Docker volume khi lưu file)
 
