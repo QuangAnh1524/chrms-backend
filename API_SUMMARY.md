@@ -2,91 +2,52 @@
 
 Base URL: `http://localhost:8080/api/v1`
 
-## 📋 Complete API List
+## 📋 Complete API List (42 endpoint)
 
 | # | Method & Path | Vai trò sử dụng | Body/Params bắt buộc | Trả về quan trọng |
 | --- | --- | --- | --- | --- |
 | 1 | `POST /auth/register` | PATIENT/DOCTOR/ADMIN | `{ email, password, role, fullName, phone? }` | token, userId, role |
 | 2 | `POST /auth/login` | Tất cả | `{ email, password }` | token, userId, role |
 | 3 | `POST /auth/logout` | Tất cả | Header `Authorization` | 200 OK (token bị blacklist nếu bật) |
-
-### 🏥 Hospitals & Doctors (6 endpoints)
-| # | Method & Path | Vai trò | Body/params | Ghi chú |
-| --- | --- | --- | --- | --- |
-| 4 | `GET /hospitals` | PATIENT/DOCTOR/ADMIN | — | Danh sách bệnh viện có id/name/address/phone/type |
-| 5 | `GET /hospitals/{id}` | PATIENT/DOCTOR/ADMIN | Path: `id` | Chi tiết bệnh viện |
-| 6 | `GET /doctors` | PATIENT/DOCTOR/ADMIN | Query: `page`, `size`? | Trả `consultationFee`, `experienceYears`, `departmentId`, `hospitalId` |
-| 7 | `GET /doctors/{id}` | PATIENT/DOCTOR/ADMIN | Path: `id` | Chi tiết bác sĩ |
-| 8 | `GET /doctors/department/{departmentId}` | PATIENT/DOCTOR/ADMIN | Path: `departmentId` | Lọc bác sĩ theo khoa |
+| 4 | `POST /auth/refresh` | Tất cả | Header `Authorization` | token mới từ token còn hạn |
+| 5 | `GET /hospitals` | PATIENT/DOCTOR/ADMIN | — | Danh sách bệnh viện |
+| 6 | `GET /hospitals/{id}` | PATIENT/DOCTOR/ADMIN | Path: `id` | Chi tiết bệnh viện |
+| 7 | `GET /doctors` | PATIENT/DOCTOR/ADMIN | — | Thông tin bác sĩ, chuyên khoa, viện, phí khám |
+| 8 | `GET /doctors/{id}` | PATIENT/DOCTOR/ADMIN | Path: `id` | Chi tiết bác sĩ |
 | 9 | `GET /doctors/hospital/{hospitalId}` | PATIENT/DOCTOR/ADMIN | Path: `hospitalId` | Lọc bác sĩ theo bệnh viện |
-
-### 📅 Doctor Schedules (3 endpoints)
-| # | Method & Path | Vai trò | Body/params | Ghi chú |
-| --- | --- | --- | --- | --- |
-| 10 | `POST /doctors/schedules` | DOCTOR | `{ doctorId, dayOfWeek (1-7), startTime (HH:mm:ss), endTime (HH:mm:ss), isAvailable? }` | Tạo/ cập nhật ca làm việc |
-| 11 | `GET /doctors/{doctorId}/schedules` | DOCTOR/ADMIN | Path: `doctorId` | Hiển thị lịch đã khai báo |
-| 12 | `GET /doctors/{doctorId}/available-slots?date=YYYY-MM-DD` | PATIENT | Path: `doctorId`, Query: `date` | Tính slot trống trong ngày; cần cho đặt lịch |
-
-### 👤 Patient Profile (2 endpoints)
-| # | Method & Path | Vai trò | Body/params | Ghi chú |
-| --- | --- | --- | --- | --- |
-| 13 | `GET /patients/me` | PATIENT | — | Lấy hồ sơ cá nhân từ JWT |
-| 14 | `PATCH /patients/me` | PATIENT | `{ fullName?, phone?, dob?, gender?, address?, emergencyContact?, bloodType?, allergies? }` | Cập nhật hồ sơ cá nhân |
-
-### 📋 Appointments (7 endpoints)
-| # | Method & Path | Vai trò | Body/params | Trạng thái/ghi chú |
-| --- | --- | --- | --- | --- |
-| 15 | `POST /patients/appointments` | PATIENT | `{ doctorId, hospitalId, departmentId, appointmentDate (YYYY-MM-DD), appointmentTime (HH:mm), notes? }` | Trả `queueNumber`, `status=PENDING` |
-| 16 | `GET /patients/appointments/upcoming` | PATIENT | — | Lịch hẹn trong tương lai của bệnh nhân (dựa trên token) |
-| 17 | `GET /patients/appointments/history` | PATIENT | — | Lịch sử khám của bệnh nhân |
-| 18 | `GET /appointments/{id}` | PATIENT/DOCTOR/ADMIN | Path: `id` | Xem chi tiết một lịch hẹn |
-| 19 | `POST /appointments/{id}/confirm` | DOCTOR/ADMIN | Path: `id` | Xác nhận lịch từ trạng thái PENDING |
-| 20 | `POST /appointments/{id}/cancel` | PATIENT/DOCTOR/ADMIN | Path: `id`, body `{ reason? }` | Huỷ lịch (ghi nhận lý do nếu có) |
-| 21 | `POST /appointments/{id}/complete` | DOCTOR/ADMIN | Path: `id` | Đánh dấu lịch đã khám xong |
-
-### 💊 Prescriptions (2 endpoints)
-| # | Method & Path | Vai trò | Body/params | Ghi chú |
-| --- | --- | --- | --- | --- |
-| 22 | `POST /prescriptions` | DOCTOR | `{ medicalRecordId, medicines:[{ medicineId, dosage, quantity, instructions? }] }` | Liên kết hồ sơ bệnh án đã APPROVED |
-| 23 | `GET /prescriptions/medical-record/{medicalRecordId}` | PATIENT/DOCTOR | Path: `medicalRecordId` | Lấy đơn thuốc theo hồ sơ |
-
-### 📎 Medical Record Files (3 endpoints)
-| # | Method & Path | Vai trò | Body/params | Định dạng |
-| --- | --- | --- | --- | --- |
-| 24 | `POST /medical-records/files/upload` | DOCTOR | multipart: `medicalRecordId`, `file`, `fileType` | fileType: XRAY/LAB_RESULT/SCAN/OTHER |
-| 25 | `GET /medical-records/files/medical-record/{medicalRecordId}` | PATIENT/DOCTOR | Path: `medicalRecordId` | Danh sách file đính kèm |
-| 26 | `GET /medical-records/files/{id}/download` | PATIENT/DOCTOR | Path: `id` | Tải file |
-
-### 💳 Payments (3 endpoints)
-| # | Method & Path | Vai trò | Body/params | Trạng thái |
-| --- | --- | --- | --- | --- |
-| 27 | `POST /payments` | PATIENT | `{ appointmentId, paymentMethod }` | Tạo transaction với `status=PENDING`, trả `transactionRef` |
-| 28 | `GET /payments/appointment/{appointmentId}` | PATIENT/ADMIN | Path: `appointmentId` | Kiểm tra danh sách giao dịch của lịch hẹn |
-| 29 | `POST /payments/{transactionRef}/complete` | PATIENT/ADMIN | Path: `transactionRef` | Đánh dấu thanh toán `COMPLETED` |
-
-### 📝 Medical Records (5 endpoints)
-| # | Method & Path | Vai trò | Body/params | Trạng thái |
-| --- | --- | --- | --- | --- |
-| 30 | `POST /medical-records` | DOCTOR | `{ appointmentId, diagnosis, notes }` | Khởi tạo hồ sơ, `status=DRAFT` |
-| 31 | `PATCH /medical-records/{id}` | DOCTOR | `{ symptoms?, diagnosis?, treatment?, notes? }` | Chỉ sửa khi hồ sơ đang DRAFT |
-| 32 | `POST /medical-records/{id}/approve` | DOCTOR | Path: `id` | Chốt hồ sơ, `status=APPROVED` |
-| 33 | `GET /medical-records/patient/{patientId}` | PATIENT/DOCTOR | Path: `patientId` | Lấy tất cả hồ sơ của bệnh nhân |
-| 34 | `GET /medical-records/{id}` | PATIENT/DOCTOR | Path: `id` | Chi tiết một hồ sơ |
-
-### 💬 Chat Messages (4 endpoints - Polling-based)
-| # | Method & Path | Vai trò | Body/params | Ghi chú |
-| --- | --- | --- | --- | --- |
-| 35 | `POST /chat/appointments/{appointmentId}/messages` | PATIENT/DOCTOR | Path: `appointmentId`, Body `{ message }` | Lưu tin nhắn gắn userId từ JWT |
-| 36 | `GET /chat/appointments/{appointmentId}/messages?after={datetime}` | PATIENT/DOCTOR | Query: `after`? | Polling, trả tối đa 50 message cache |
-| 37 | `GET /chat/appointments/{appointmentId}/messages/unread` | DOCTOR | — | Tin nhắn chưa đọc, phục vụ thông báo |
-| 38 | `POST /chat/appointments/{appointmentId}/messages/read` | PATIENT/DOCTOR | `{ upToMessageId? | upToDatetime? }` | Đánh dấu đã đọc đến thời điểm/ID |
-
-### ⭐ Feedback (3 endpoints)
-| # | Method & Path | Vai trò | Body/params | Ghi chú |
-| --- | --- | --- | --- | --- |
-| 39 | `POST /feedback` | PATIENT | `{ appointmentId, rating (1-5), comment? }` | Chỉ cho phép sau khi khám hoàn tất |
-| 40 | `GET /feedback/doctor/{doctorId}` | PATIENT/DOCTOR | Path: `doctorId` | Danh sách feedback theo thời gian |
-| 41 | `GET /feedback/doctor/{doctorId}/average-rating` | PATIENT/DOCTOR | Path: `doctorId` | Cache trung bình rating 10 phút |
+| 10 | `GET /doctors/department/{departmentId}` | PATIENT/DOCTOR/ADMIN | Path: `departmentId` | Lọc bác sĩ theo khoa |
+| 11 | `POST /doctors/schedules` | DOCTOR | `{ doctorId, dayOfWeek (1-7), startTime (HH:mm:ss), endTime (HH:mm:ss), isAvailable }` | Tạo/ cập nhật ca làm việc |
+| 12 | `GET /doctors/{doctorId}/schedules` | PATIENT/DOCTOR/ADMIN | Path: `doctorId` | Lịch đã khai báo |
+| 13 | `GET /doctors/{doctorId}/available-slots?date=YYYY-MM-DD` | PATIENT/DOCTOR/ADMIN | Path: `doctorId`, Query: `date` | Slot trống theo ngày |
+| 14 | `GET /patients/me` | PATIENT | — | Hồ sơ cá nhân từ JWT |
+| 15 | `PATCH /patients/me` | PATIENT | `{ fullName?, phone?, dob?, gender?, address?, emergencyContact?, bloodType?, allergies? }` | Cập nhật hồ sơ |
+| 16 | `POST /patients/appointments` | PATIENT | `{ doctorId, hospitalId, departmentId, appointmentDate, appointmentTime, notes? }` | `queueNumber`, `status=PENDING` |
+| 17 | `GET /patients/appointments/upcoming` | PATIENT | — | Lịch hẹn tương lai |
+| 18 | `GET /patients/appointments/history` | PATIENT | — | Lịch sử khám |
+| 19 | `GET /appointments/{id}` | PATIENT/DOCTOR/ADMIN | Path: `id` | Chi tiết appointment |
+| 20 | `POST /appointments/{id}/confirm` | DOCTOR/ADMIN | Path: `id` | Xác nhận từ PENDING |
+| 21 | `POST /appointments/{id}/complete` | DOCTOR/ADMIN | Path: `id` | Đánh dấu COMPLETED |
+| 22 | `POST /appointments/{id}/cancel` | PATIENT/DOCTOR/ADMIN | Path: `id`, body `{ reason? }` | Huỷ appointment |
+| 23 | `POST /payments` | PATIENT/ADMIN | `{ appointmentId, paymentMethod, transactionRef?, returnUrl? }` | transactionRef, paymentUrl |
+| 24 | `GET /payments/appointment/{appointmentId}` | PATIENT/ADMIN | Path: `appointmentId` | Danh sách giao dịch của appointment |
+| 25 | `POST /payments/{transactionRef}/complete` | PATIENT/ADMIN | Path: `transactionRef` | Đánh dấu thanh toán COMPLETED |
+| 26 | `POST /medical-records` | DOCTOR | `{ appointmentId, symptoms?, diagnosis?, treatment?, notes? }` | `status=DRAFT` |
+| 27 | `POST /medical-records/{id}/approve` | DOCTOR | Path: `id` | `status=APPROVED` |
+| 28 | `PATCH /medical-records/{id}` | DOCTOR | `{ symptoms?, diagnosis?, treatment?, notes? }` | Chỉ khi DRAFT |
+| 29 | `GET /medical-records/patient/{patientId}` | PATIENT/DOCTOR/ADMIN | Path: `patientId` | Toàn bộ hồ sơ của bệnh nhân |
+| 30 | `GET /medical-records/{id}` | PATIENT/DOCTOR/ADMIN | Path: `id` | Chi tiết hồ sơ |
+| 31 | `POST /medical-records/files/upload` | DOCTOR/ADMIN | multipart: `medicalRecordId`, `file`, `fileType` | Lưu metadata file |
+| 32 | `GET /medical-records/files/medical-record/{medicalRecordId}` | PATIENT/DOCTOR/ADMIN | Path: `medicalRecordId` | Danh sách file |
+| 33 | `GET /medical-records/files/{id}/download` | PATIENT/DOCTOR/ADMIN | Path: `id` | Tải file |
+| 34 | `POST /prescriptions` | DOCTOR | `{ medicalRecordId, items:[{ medicineId, dosage, frequency, duration, quantity, instructions? }] }` | Đơn thuốc + item |
+| 35 | `GET /prescriptions/medical-record/{medicalRecordId}` | PATIENT/DOCTOR/ADMIN | Path: `medicalRecordId` | Đơn thuốc theo hồ sơ |
+| 36 | `POST /chat/appointments/{appointmentId}/messages` | PATIENT/DOCTOR/ADMIN | Path: `appointmentId`, Body `{ message }` | Tin nhắn gắn userId |
+| 37 | `GET /chat/appointments/{appointmentId}/messages?after={datetime}` | PATIENT/DOCTOR/ADMIN | Query: `after`? | Polling (có cache 50 tin) |
+| 38 | `GET /chat/appointments/{appointmentId}/messages/unread` | PATIENT/DOCTOR/ADMIN | — | Tin nhắn chưa đọc theo user |
+| 39 | `POST /chat/appointments/{appointmentId}/messages/read` | PATIENT/DOCTOR/ADMIN | `{ upToMessageId? | upToDatetime? }` | Đánh dấu đã đọc |
+| 40 | `POST /feedback` | PATIENT | `{ appointmentId, rating (1-5), comment? }` | Feedback đã lưu |
+| 41 | `GET /feedback/doctor/{doctorId}` | PATIENT/DOCTOR/ADMIN | Path: `doctorId` | Danh sách feedback |
+| 42 | `GET /feedback/doctor/{doctorId}/average-rating` | PATIENT/DOCTOR/ADMIN | Path: `doctorId` | Điểm trung bình (cache 10 phút) |
 
 ---
 
@@ -223,5 +184,5 @@ Base URL: `http://localhost:8080/api/v1`
 
 ---
 
-**Total: 41 API Endpoints** ✅
+**Total: 42 API Endpoints** ✅
 
