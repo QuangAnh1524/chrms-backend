@@ -4,5 +4,9 @@ public enum AppointmentStatus {
     PENDING,
     CONFIRMED,
     COMPLETED,
-    CANCELLED
+    CANCELLED;
+
+    public boolean isTerminal() {
+        return this == COMPLETED || this == CANCELLED;
+    }
 }

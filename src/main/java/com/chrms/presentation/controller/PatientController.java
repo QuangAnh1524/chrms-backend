@@ -23,6 +23,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -43,6 +44,7 @@ public class PatientController {
 
     @GetMapping("/me")
     @Operation(summary = "Get my profile", description = "Get authenticated patient's profile")
+    @PreAuthorize("hasRole('PATIENT')")
     public ApiResponse<PatientProfileResponse> getMyProfile(HttpServletRequest httpRequest) {
         Long userId = (Long) httpRequest.getAttribute("userId");
         PatientProfileResult result = getPatientProfileUseCase.execute(userId);
@@ -67,6 +69,7 @@ public class PatientController {
 
     @PatchMapping("/me")
     @Operation(summary = "Update my profile", description = "Update authenticated patient's profile")
+    @PreAuthorize("hasRole('PATIENT')")
     public ApiResponse<PatientProfileResponse> updateMyProfile(
             @RequestBody UpdatePatientProfileRequest request,
             HttpServletRequest httpRequest) {
@@ -107,6 +110,7 @@ public class PatientController {
     @PostMapping("/appointments")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Book appointment", description = "Patient books a new appointment")
+    @PreAuthorize("hasRole('PATIENT')")
     public ApiResponse<AppointmentResponse> bookAppointment(
             @Valid @RequestBody BookAppointmentRequest request,
             HttpServletRequest httpRequest) {
@@ -125,6 +129,7 @@ public class PatientController {
 
     @GetMapping("/appointments/upcoming")
     @Operation(summary = "Get upcoming appointments", description = "Retrieve upcoming appointments for the authenticated patient")
+    @PreAuthorize("hasRole('PATIENT')")
     public ApiResponse<List<AppointmentResponse>> getUpcomingAppointments(HttpServletRequest httpRequest) {
         Long userId = (Long) httpRequest.getAttribute("userId");
 
@@ -141,6 +146,7 @@ public class PatientController {
 
     @GetMapping("/appointments/history")
     @Operation(summary = "Get appointment history", description = "Retrieve appointment history for the authenticated patient")
+    @PreAuthorize("hasRole('PATIENT')")
     public ApiResponse<List<AppointmentResponse>> getAppointmentHistory(HttpServletRequest httpRequest) {
         Long userId = (Long) httpRequest.getAttribute("userId");
 

@@ -36,6 +36,10 @@ public class SubmitFeedbackUseCase {
             throw new BusinessRuleViolationException("You can only submit feedback for your own appointments");
         }
 
+        if (appointment.getStatus() != com.chrms.domain.enums.AppointmentStatus.COMPLETED) {
+            throw new BusinessRuleViolationException("Chỉ được đánh giá sau khi lịch hẹn đã hoàn thành");
+        }
+
         // Validate rating
         if (rating < 1 || rating > 5) {
             throw new BusinessRuleViolationException("Rating must be between 1 and 5");

@@ -3,6 +3,10 @@ package com.chrms.presentation.controller;
 import com.chrms.application.dto.result.AuthResult;
 import com.chrms.application.usecase.auth.LoginUseCase;
 import com.chrms.application.usecase.auth.RegisterUseCase;
+import com.chrms.domain.entity.User;
+import com.chrms.domain.enums.Role;
+import com.chrms.domain.exception.UnauthorizedException;
+import com.chrms.domain.repository.UserRepository;
 import com.chrms.infrastructure.cache.RedisCacheService;
 import com.chrms.infrastructure.security.jwt.JwtTokenProvider;
 import com.chrms.presentation.dto.request.LoginRequest;
@@ -29,6 +33,7 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthMapper authMapper;
     private final RedisCacheService cacheService;
+    private final UserRepository userRepository;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -68,6 +73,33 @@ public class AuthController {
             cacheService.blacklistToken(token, expirationTime);
         }
         return ApiResponse.success("Logout successful", null);
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh token", description = "Refresh an existing JWT token")
+    public ApiResponse<AuthResponse> refreshToken(HttpServletRequest request) {
+        String token = extractTokenFromRequest(request);
+        if (token == null || !jwtTokenProvider.validateToken(token)) {
+            throw new UnauthorizedException("Token không hợp lệ hoặc đã hết hạn");
+        }
+
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+        String email = jwtTokenProvider.getEmailFromToken(token);
+        String role = jwtTokenProvider.getRoleFromToken(token);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Không tìm thấy thông tin người dùng"));
+
+        String refreshedToken = jwtTokenProvider.generateToken(userId, email, role);
+
+        AuthResult result = AuthResult.builder()
+                .userId(userId)
+                .email(email)
+                .fullName(user.getFullName())
+                .role(Role.valueOf(role))
+                .build();
+
+        return ApiResponse.success("Làm mới token thành công", authMapper.toResponse(result, refreshedToken));
     }
 
     private String extractTokenFromRequest(HttpServletRequest request) {
