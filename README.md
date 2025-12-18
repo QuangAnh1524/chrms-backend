@@ -150,31 +150,45 @@ Admin:    admin@chrms.vn    / password123
 | --- | --- | --- | --- |
 | Auth | POST `/auth/register` | Đăng ký user (role = PATIENT/DOCTOR/ADMIN) | `{ "email", "password", "role", "fullName" }` |
 |  | POST `/auth/login` | Lấy JWT | `{ "email", "password" }` → trả token |
+|  | POST `/auth/logout` | Logout, blacklist token hiện tại | Header `Authorization` |
 | Hospital/Doctor | GET `/hospitals` | Danh sách bệnh viện | — |
 |  | GET `/hospitals/{id}` | Chi tiết bệnh viện | Path: `id` |
 |  | GET `/doctors` | Danh sách bác sĩ | Query: `page`, `size` |
 |  | GET `/doctors/{id}` | Chi tiết bác sĩ | Path: `id` |
 |  | GET `/doctors/department/{departmentId}` | Bác sĩ theo khoa | Path: `departmentId` |
 |  | GET `/doctors/hospital/{hospitalId}` | Bác sĩ theo bệnh viện | Path: `hospitalId` |
+|  | GET `/doctors/{doctorId}/schedules` | Lịch làm việc đã khai báo | Path: `doctorId` |
 | Schedule | POST `/doctors/schedules` | Bác sĩ tạo lịch làm việc | `{ "doctorId", "dayOfWeek" (1=Mon..7=Sun), "startTime" (HH:mm:ss), "endTime" (HH:mm:ss), "isAvailable"? }` |
 |  | GET `/doctors/{doctorId}/available-slots` | Slot trống cho đặt lịch | Query: `date=YYYY-MM-DD` |
 | Patient | GET `/patients/me` | Lấy hồ sơ cá nhân (theo JWT) | — |
 |  | PATCH `/patients/me` | Cập nhật hồ sơ cá nhân | `{ fullName?, phone?, dob?, gender?, address?, emergencyContact?, bloodType?, allergies? }` |
 | Appointment | POST `/patients/appointments` | Bệnh nhân đặt lịch | `{ "doctorId", "hospitalId", "departmentId", "appointmentDate" (YYYY-MM-DD), "appointmentTime" (HH:mm), "notes"? }` |
+|  | GET `/patients/appointments/upcoming` | Lịch hẹn sắp tới của bệnh nhân | — |
+|  | GET `/patients/appointments/history` | Lịch sử khám của bệnh nhân | — |
 |  | GET `/appointments/{id}` | Chi tiết 1 lịch hẹn | Path: `id` |
 |  | POST `/appointments/{id}/confirm` | Bác sĩ/Admin xác nhận lịch | Path: `id` |
 |  | POST `/appointments/{id}/cancel` | Bệnh nhân/Bác sĩ/Admin huỷ lịch | Path: `id`, body `{ reason? }` |
 |  | POST `/appointments/{id}/complete` | Bác sĩ/Admin hoàn tất sau khám | Path: `id` |
 | Payment | POST `/payments` | Tạo giao dịch | `{ "appointmentId", "paymentMethod" }` |
+|  | GET `/payments/appointment/{appointmentId}` | Kiểm tra giao dịch của lịch hẹn | Path: `appointmentId` |
 |  | POST `/payments/{transactionRef}/complete` | Hoàn tất giao dịch | Path: `transactionRef` |
 | Medical Record | POST `/medical-records` | Bác sĩ tạo hồ sơ | `{ "appointmentId", "diagnosis", "notes" }` |
 |  | PATCH `/medical-records/{id}` | Sửa hồ sơ khi còn DRAFT | `{ symptoms?, diagnosis?, treatment?, notes? }` |
 |  | POST `/medical-records/{id}/approve` | Duyệt hồ sơ | Path: `id` |
+|  | GET `/medical-records/patient/{patientId}` | Tra cứu toàn bộ hồ sơ của bệnh nhân | Path: `patientId` |
+|  | GET `/medical-records/{id}` | Chi tiết một hồ sơ | Path: `id` |
 | File | POST `/medical-records/files/upload` | Upload file hồ sơ | multipart: `medicalRecordId`, `file`, `fileType` |
+|  | GET `/medical-records/files/medical-record/{medicalRecordId}` | Danh sách file đính kèm | Path: `medicalRecordId` |
+|  | GET `/medical-records/files/{id}/download` | Tải file đính kèm | Path: `id` |
 | Prescription | POST `/prescriptions` | Tạo đơn thuốc | `{ "medicalRecordId", "medicines"[] }` |
+|  | GET `/prescriptions/medical-record/{medicalRecordId}` | Lấy đơn thuốc theo hồ sơ | Path: `medicalRecordId` |
 | Chat | POST `/chat/appointments/{appointmentId}/messages` | Gửi chat | `{ "message" }` (lấy `userId` từ JWT) |
+|  | GET `/chat/appointments/{appointmentId}/messages` | Poll danh sách tin nhắn (có `after`?) | Query: `after=YYYY-MM-DDTHH:mm:ss`? |
+|  | GET `/chat/appointments/{appointmentId}/messages/unread` | Tin nhắn chưa đọc (cho doctor) | — |
 |  | POST `/chat/appointments/{appointmentId}/messages/read` | Đánh dấu đã đọc | `{ upToMessageId? | upToDatetime? }` |
 | Feedback | POST `/feedback` | Bệnh nhân gửi đánh giá | `{ "appointmentId", "rating", "comment" }` |
+|  | GET `/feedback/doctor/{doctorId}` | Danh sách feedback theo thời gian | Path: `doctorId` |
+|  | GET `/feedback/doctor/{doctorId}/average-rating` | Trung bình rating (cache 10 phút) | Path: `doctorId` |
 
 > Đầy đủ 33 endpoint: xem [API_SUMMARY.md](API_SUMMARY.md) hoặc Swagger UI.
 
@@ -196,6 +210,8 @@ Admin:    admin@chrms.vn    / password123
 - `GET /medical-records/patient/{patientId}`: FE dùng để tra cứu lịch sử khám của bệnh nhân đã đăng nhập.
 - `GET /payments/appointment/{appointmentId}`: hiển thị trạng thái giao dịch khi patient reload trang.
 - `GET /prescriptions/medical-record/{medicalRecordId}`: hiển thị chi tiết đơn thuốc sau khi bác sĩ kê đơn.
+- `GET /medical-records/files/medical-record/{medicalRecordId}` và `GET /medical-records/files/{id}/download`: tải danh sách và nội dung file cận lâm sàng.
+- `GET /chat/appointments/{appointmentId}/messages` và `/messages/unread`: poll lịch sử chat và tin chưa đọc.
 
 ### ✉️ Email & thanh toán
 - **Email thông báo:** `BookAppointmentUseCase` gửi email xác nhận lịch khám cho bệnh nhân nếu có địa chỉ email, nội dung dựng từ `EmailService` và gửi qua `JavaMailSender` (có log cảnh báo nếu gửi lỗi). Không có API thủ công để gửi email: hệ thống tự gửi khi đặt lịch thành công (và có thể mở rộng thêm flow duyệt hồ sơ).
