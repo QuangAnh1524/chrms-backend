@@ -229,6 +229,7 @@ Admin:    admin@chrms.vn    / password123
 
 Những gì script thực hiện:
 - Đăng nhập đủ 3 vai trò (Admin/Patient/Doctor) và xác nhận token.
+- (Tuỳ chọn) Tự tạo tài khoản patient mới để đảm bảo email xác nhận được gửi tới `PATIENT_EMAIL`.
 - Admin: rà soát danh mục bệnh viện/bác sĩ.
 - Doctor: cập nhật lịch làm việc (theo `dayOfWeek`, giờ bắt đầu/kết thúc chuẩn `HH:mm:ss`).
 - Patient: xem slot trống, đặt lịch (bắt buộc `departmentId`, giờ chuẩn `HH:mm`), xem lịch sắp tới.
@@ -240,8 +241,10 @@ Chạy script:
 ```bash
 # Biến môi trường tuỳ chỉnh (đã có mặc định seed):
 # BASE_URL=http://localhost:8080/api/v1
+# AUTO_REGISTER_PATIENT=true
 # ADMIN_EMAIL=admin@chrms.vn ADMIN_PASSWORD=password123
-# PATIENT_EMAIL=patient1@test.com PATIENT_PASSWORD=password123
+# PATIENT_EMAIL=ninoel2004@gmail.com PATIENT_PASSWORD=password123
+# PATIENT_FULL_NAME="API Flow Patient"
 # DOCTOR_EMAIL=doctor1@test.com DOCTOR_PASSWORD=password123
 # HOSPITAL_ID=1 DEPARTMENT_ID=1 DOCTOR_ID=1
 # APPOINTMENT_DATE=2025-01-01 APPOINTMENT_TIME=09:00
