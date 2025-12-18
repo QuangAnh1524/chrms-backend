@@ -4,6 +4,7 @@ import com.chrms.application.usecase.shared.GetChatMessagesUseCase;
 import com.chrms.application.usecase.shared.MarkMessagesReadUseCase;
 import com.chrms.application.usecase.shared.SendChatMessageUseCase;
 import com.chrms.domain.entity.ChatMessage;
+import com.chrms.infrastructure.security.SecurityUtils;
 import com.chrms.presentation.dto.request.MarkMessagesReadRequest;
 import com.chrms.presentation.dto.request.SendMessageRequest;
 import com.chrms.presentation.dto.response.ApiResponse;
@@ -16,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -36,11 +38,12 @@ public class ChatController {
     @PostMapping("/appointments/{appointmentId}/messages")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Send message", description = "Send a chat message for an appointment")
+    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR','ADMIN')")
     public ApiResponse<ChatMessageResponse> sendMessage(
             @PathVariable Long appointmentId,
             @Valid @RequestBody SendMessageRequest request,
             HttpServletRequest httpRequest) {
-        
+
         Long userId = (Long) httpRequest.getAttribute("userId");
         
         ChatMessage message = sendMessageUseCase.execute(appointmentId, userId, request.getMessage());
@@ -59,11 +62,15 @@ public class ChatController {
 
     @GetMapping("/appointments/{appointmentId}/messages")
     @Operation(summary = "Get messages", description = "Get all messages for an appointment (polling endpoint)")
+    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR','ADMIN')")
     public ApiResponse<List<ChatMessageResponse>> getMessages(
             @PathVariable Long appointmentId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime after) {
-        
-        List<ChatMessage> messages = getMessagesUseCase.execute(appointmentId, after);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime after,
+            HttpServletRequest httpRequest) {
+
+        Long userId = SecurityUtils.getUserId(httpRequest);
+
+        List<ChatMessage> messages = getMessagesUseCase.execute(appointmentId, after, userId);
         
         List<ChatMessageResponse> response = messages.stream()
                 .map(message -> ChatMessageResponse.builder()
@@ -81,6 +88,7 @@ public class ChatController {
 
     @GetMapping("/appointments/{appointmentId}/messages/unread")
     @Operation(summary = "Get unread messages", description = "Get unread messages for an appointment (polling endpoint)")
+    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR','ADMIN')")
     public ApiResponse<List<ChatMessageResponse>> getUnreadMessages(
             @PathVariable Long appointmentId,
             HttpServletRequest httpRequest) {
@@ -105,6 +113,7 @@ public class ChatController {
 
     @PostMapping("/appointments/{appointmentId}/messages/read")
     @Operation(summary = "Mark messages as read", description = "Mark chat messages as read up to a point in time or message ID")
+    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR','ADMIN')")
     public ApiResponse<Void> markMessagesRead(
             @PathVariable Long appointmentId,
             @RequestBody(required = false) MarkMessagesReadRequest request,

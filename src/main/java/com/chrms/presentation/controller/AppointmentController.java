@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,6 +27,7 @@ public class AppointmentController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get appointment details", description = "Retrieve a single appointment")
+    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR','ADMIN')")
     public ApiResponse<AppointmentResponse> getAppointmentDetail(@PathVariable Long id, HttpServletRequest httpRequest) {
         Long userId = (Long) httpRequest.getAttribute("userId");
         AppointmentResult result = manageAppointmentStatusUseCase.getAppointmentDetail(id, userId);
@@ -35,6 +37,7 @@ public class AppointmentController {
     @PostMapping("/{id}/confirm")
     @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "Confirm appointment", description = "Confirm a pending appointment (Doctor/Admin)")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN')")
     public ApiResponse<AppointmentResponse> confirmAppointment(@PathVariable Long id, HttpServletRequest httpRequest) {
         Long userId = (Long) httpRequest.getAttribute("userId");
         AppointmentResult result = manageAppointmentStatusUseCase.confirmAppointment(id, userId);
@@ -44,6 +47,7 @@ public class AppointmentController {
     @PostMapping("/{id}/complete")
     @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "Complete appointment", description = "Mark a confirmed appointment as completed (Doctor/Admin)")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN')")
     public ApiResponse<AppointmentResponse> completeAppointment(@PathVariable Long id, HttpServletRequest httpRequest) {
         Long userId = (Long) httpRequest.getAttribute("userId");
         AppointmentResult result = manageAppointmentStatusUseCase.completeAppointment(id, userId);
@@ -53,6 +57,7 @@ public class AppointmentController {
     @PostMapping("/{id}/cancel")
     @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "Cancel appointment", description = "Cancel an appointment (Patient/Doctor/Admin)")
+    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR','ADMIN')")
     public ApiResponse<AppointmentResponse> cancelAppointment(
             @PathVariable Long id,
             @RequestBody(required = false) CancelAppointmentRequest request,

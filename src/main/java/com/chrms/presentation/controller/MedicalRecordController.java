@@ -6,7 +6,12 @@ import com.chrms.application.usecase.doctor.ApproveMedicalRecordUseCase;
 import com.chrms.application.usecase.doctor.CreateMedicalRecordUseCase;
 import com.chrms.application.usecase.doctor.UpdateMedicalRecordUseCase;
 import com.chrms.domain.entity.MedicalRecord;
+import com.chrms.domain.enums.Role;
+import com.chrms.domain.exception.UnauthorizedException;
+import com.chrms.domain.repository.DoctorRepository;
 import com.chrms.domain.repository.MedicalRecordRepository;
+import com.chrms.domain.repository.PatientRepository;
+import com.chrms.infrastructure.security.SecurityUtils;
 import com.chrms.presentation.dto.request.CreateMedicalRecordRequest;
 import com.chrms.presentation.dto.request.UpdateMedicalRecordRequest;
 import com.chrms.presentation.dto.response.ApiResponse;
@@ -14,9 +19,11 @@ import com.chrms.presentation.dto.response.MedicalRecordResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,11 +40,15 @@ public class MedicalRecordController {
     private final ApproveMedicalRecordUseCase approveRecordUseCase;
     private final UpdateMedicalRecordUseCase updateMedicalRecordUseCase;
     private final MedicalRecordRepository recordRepository;
+    private final PatientRepository patientRepository;
+    private final DoctorRepository doctorRepository;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create medical record", description = "Create a new medical record for an appointment")
-    public ApiResponse<MedicalRecordResponse> createRecord(@Valid @RequestBody CreateMedicalRecordRequest request) {
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ApiResponse<MedicalRecordResponse> createRecord(@Valid @RequestBody CreateMedicalRecordRequest request, HttpServletRequest httpRequest) {
+        Long userId = SecurityUtils.getUserId(httpRequest);
         CreateMedicalRecordCommand command = CreateMedicalRecordCommand.builder()
                 .appointmentId(request.getAppointmentId())
                 .symptoms(request.getSymptoms())
@@ -46,7 +57,7 @@ public class MedicalRecordController {
                 .notes(request.getNotes())
                 .build();
 
-        MedicalRecordResult result = createRecordUseCase.execute(command);
+        MedicalRecordResult result = createRecordUseCase.execute(command, userId);
 
         MedicalRecordResponse response = MedicalRecordResponse.builder()
                 .id(result.getId())
@@ -69,8 +80,10 @@ public class MedicalRecordController {
 
     @PostMapping("/{id}/approve")
     @Operation(summary = "Approve medical record", description = "Approve a medical record")
-    public ApiResponse<MedicalRecordResponse> approveRecord(@PathVariable Long id) {
-        MedicalRecord record = approveRecordUseCase.execute(id);
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ApiResponse<MedicalRecordResponse> approveRecord(@PathVariable Long id, HttpServletRequest httpRequest) {
+        Long userId = SecurityUtils.getUserId(httpRequest);
+        MedicalRecord record = approveRecordUseCase.execute(id, userId);
 
         MedicalRecordResponse response = MedicalRecordResponse.builder()
                 .id(record.getId())
@@ -92,9 +105,13 @@ public class MedicalRecordController {
 
     @PatchMapping("/{id}")
     @Operation(summary = "Update draft medical record", description = "Update a medical record while it is still in draft status")
+    @PreAuthorize("hasRole('DOCTOR')")
     public ApiResponse<MedicalRecordResponse> updateRecord(
             @PathVariable Long id,
-            @RequestBody UpdateMedicalRecordRequest request) {
+            @RequestBody UpdateMedicalRecordRequest request,
+            HttpServletRequest httpRequest) {
+
+        Long userId = SecurityUtils.getUserId(httpRequest);
 
         MedicalRecord updates = MedicalRecord.builder()
                 .symptoms(request.getSymptoms())
@@ -103,7 +120,7 @@ public class MedicalRecordController {
                 .notes(request.getNotes())
                 .build();
 
-        MedicalRecord record = updateMedicalRecordUseCase.execute(id, updates);
+        MedicalRecord record = updateMedicalRecordUseCase.execute(id, updates, userId);
 
         MedicalRecordResponse response = MedicalRecordResponse.builder()
                 .id(record.getId())
@@ -126,8 +143,12 @@ public class MedicalRecordController {
 
     @GetMapping("/patient/{patientId}")
     @Operation(summary = "Get records by patient", description = "Get all medical records for a patient")
-    public ApiResponse<List<MedicalRecordResponse>> getRecordsByPatient(@PathVariable Long patientId) {
-        List<MedicalRecord> records = recordRepository.findByPatientId(patientId);
+    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR','ADMIN')")
+    public ApiResponse<List<MedicalRecordResponse>> getRecordsByPatient(@PathVariable Long patientId, HttpServletRequest httpRequest) {
+        Long userId = SecurityUtils.getUserId(httpRequest);
+        Role role = SecurityUtils.getUserRole(httpRequest);
+
+        List<MedicalRecord> records = filterAccessibleRecords(recordRepository.findByPatientId(patientId), patientId, userId, role);
 
         List<MedicalRecordResponse> response = records.stream()
                 .map(record -> MedicalRecordResponse.builder()
@@ -152,9 +173,15 @@ public class MedicalRecordController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get record by ID", description = "Get medical record details by ID")
-    public ApiResponse<MedicalRecordResponse> getRecordById(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR','ADMIN')")
+    public ApiResponse<MedicalRecordResponse> getRecordById(@PathVariable Long id, HttpServletRequest httpRequest) {
+        Long userId = SecurityUtils.getUserId(httpRequest);
+        Role role = SecurityUtils.getUserRole(httpRequest);
+
         MedicalRecord record = recordRepository.findById(id)
                 .orElseThrow(() -> new com.chrms.domain.exception.EntityNotFoundException("MedicalRecord", id));
+
+        verifyRecordAccess(record, userId, role);
 
         MedicalRecordResponse response = MedicalRecordResponse.builder()
                 .id(record.getId())
@@ -173,6 +200,68 @@ public class MedicalRecordController {
                 .build();
 
         return ApiResponse.success(response);
+    }
+
+    private void verifyRecordAccess(MedicalRecord record, Long userId, Role role) {
+        if (role == Role.ADMIN) {
+            return;
+        }
+
+        if (role == Role.PATIENT) {
+            Long patientId = patientRepository.findByUserId(userId)
+                    .orElseThrow(() -> new com.chrms.domain.exception.EntityNotFoundException("Patient profile not found for user: " + userId))
+                    .getId();
+
+            if (!record.getPatientId().equals(patientId)) {
+                throw new UnauthorizedException("Bạn chỉ được xem hồ sơ y tế của mình");
+            }
+            return;
+        }
+
+        if (role == Role.DOCTOR) {
+            Long doctorId = doctorRepository.findByUserId(userId)
+                    .orElseThrow(() -> new com.chrms.domain.exception.EntityNotFoundException("Doctor profile not found for user: " + userId))
+                    .getId();
+
+            if (!record.getDoctorId().equals(doctorId)) {
+                throw new UnauthorizedException("Bác sĩ không phụ trách hồ sơ này");
+            }
+            return;
+        }
+
+        throw new UnauthorizedException("Không có quyền truy cập hồ sơ này");
+    }
+
+    private List<MedicalRecord> filterAccessibleRecords(List<MedicalRecord> records, Long requestedPatientId, Long userId, Role role) {
+        if (role == Role.ADMIN) {
+            return records;
+        }
+
+        if (role == Role.PATIENT) {
+            Long patientId = patientRepository.findByUserId(userId)
+                    .orElseThrow(() -> new com.chrms.domain.exception.EntityNotFoundException("Patient profile not found for user: " + userId))
+                    .getId();
+
+            if (!requestedPatientId.equals(patientId)) {
+                throw new UnauthorizedException("Bạn chỉ được xem hồ sơ của mình");
+            }
+
+            return records.stream()
+                    .filter(record -> record.getPatientId().equals(patientId))
+                    .toList();
+        }
+
+        if (role == Role.DOCTOR) {
+            Long doctorId = doctorRepository.findByUserId(userId)
+                    .orElseThrow(() -> new com.chrms.domain.exception.EntityNotFoundException("Doctor profile not found for user: " + userId))
+                    .getId();
+
+            return records.stream()
+                    .filter(record -> record.getDoctorId().equals(doctorId))
+                    .toList();
+        }
+
+        throw new UnauthorizedException("Không có quyền xem danh sách hồ sơ y tế");
     }
 }
 
