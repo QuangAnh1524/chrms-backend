@@ -33,29 +33,41 @@ from datetime import datetime, timedelta
 print((datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d"))
 PY
 )}
+CANCEL_APPOINTMENT_DATE=${CANCEL_APPOINTMENT_DATE:-"${APPOINTMENT_DATE}"}
 
 # IMPORTANT: must match "%H:%M"
 APPOINTMENT_TIME_INPUT=${APPOINTMENT_TIME:-"01:00"}
+CANCEL_APPOINTMENT_TIME_INPUT=${CANCEL_APPOINTMENT_TIME:-"02:30"}
 
 APPOINTMENT_TIME=$($PYTHON_BIN - <<PY
 from datetime import datetime
 print(datetime.strptime("${APPOINTMENT_TIME_INPUT}", "%H:%M").strftime("%H:%M"))
 PY
 )
-
-SCHEDULE_START_TIME=$($PYTHON_BIN - <<PY
+CANCEL_APPOINTMENT_TIME=$($PYTHON_BIN - <<PY
 from datetime import datetime
-print(datetime.strptime("${APPOINTMENT_TIME_INPUT}", "%H:%M").strftime("%H:%M:%S"))
+print(datetime.strptime("${CANCEL_APPOINTMENT_TIME_INPUT}", "%H:%M").strftime("%H:%M"))
 PY
 )
 
+SCHEDULE_START_TIME=$($PYTHON_BIN - <<PY
+from datetime import datetime
+slot_one = datetime.strptime("${APPOINTMENT_TIME}", "%H:%M")
+slot_two = datetime.strptime("${CANCEL_APPOINTMENT_TIME}", "%H:%M")
+print(min(slot_one, slot_two).strftime("%H:%M:%S"))
+PY
+)
 SCHEDULE_END_TIME=$($PYTHON_BIN - <<PY
 from datetime import datetime, timedelta
-print((datetime.strptime("${APPOINTMENT_TIME_INPUT}", "%H:%M") + timedelta(hours=1)).strftime("%H:%M:%S"))
+slot_one = datetime.strptime("${APPOINTMENT_TIME}", "%H:%M")
+slot_two = datetime.strptime("${CANCEL_APPOINTMENT_TIME}", "%H:%M")
+print((max(slot_one, slot_two) + timedelta(hours=1)).strftime("%H:%M:%S"))
 PY
 )
 
 CHAT_MESSAGE=${CHAT_MESSAGE:-"Xin chao doctor"}
+PATIENT_PATCH_PHONE=${PATIENT_PATCH_PHONE:-"0900$(date +%H%M)"}
+PATIENT_PATCH_ADDRESS=${PATIENT_PATCH_ADDRESS:-"Auto test address"}
 
 # Global last call result (avoid subshell issues)
 LAST_STATUS_CODE=""
@@ -70,7 +82,8 @@ Usage: BASE_URL=http://localhost:8080/api/v1 LOG_FILE=./artifacts/flow.log \\
        PATIENT_FULL_NAME="API Flow Patient" PATIENT_DOB=2004-02-15 PATIENT_GENDER=MALE \\
        DOCTOR_EMAIL=doctor@test.com DOCTOR_PASSWORD=password123 \\
        HOSPITAL_ID=1 DEPARTMENT_ID=1 DOCTOR_ID=1 \\
-       APPOINTMENT_DATE=2025-01-01 APPOINTMENT_TIME=09:00 \\
+       APPOINTMENT_DATE=2025-01-01 CANCEL_APPOINTMENT_DATE=2025-01-02 \\
+       APPOINTMENT_TIME=09:00 CANCEL_APPOINTMENT_TIME=10:30 \\
        bash scripts/run_full_api_flow.sh
 
 Dependencies: curl, jq, and python (for cross-platform date/time).
@@ -171,6 +184,21 @@ extract_or_fail() {
   echo "$value"
 }
 
+create_schedule() {
+  local actor="$1" day_of_week="$2" token="$3"
+  local schedule_body=$(cat <<JSON
+{
+  "doctorId": $DOCTOR_ID,
+  "dayOfWeek": $day_of_week,
+  "startTime": "${SCHEDULE_START_TIME}",
+  "endTime": "${SCHEDULE_END_TIME}",
+  "isAvailable": true
+}
+JSON
+)
+  call_api "$actor" "POST" "/doctors/schedules" "$schedule_body" "$token" "201"
+}
+
 title "CHRMS end-to-end API flow"
 info "Base URL         : $BASE_URL"
 info "Log file         : $LOG_FILE"
@@ -182,6 +210,7 @@ info "Hospital ID      : $HOSPITAL_ID"
 info "Department ID    : $DEPARTMENT_ID"
 info "Doctor ID        : $DOCTOR_ID"
 info "Appointment      : $APPOINTMENT_DATE $APPOINTMENT_TIME"
+info "Cancel scenario  : $CANCEL_APPOINTMENT_DATE $CANCEL_APPOINTMENT_TIME"
 
 # 0) Optional register patient
 if [[ "$AUTO_REGISTER_PATIENT" == "true" ]]; then
@@ -208,42 +237,68 @@ fi
 
 # 1) Authenticate all roles
 call_api "Admin" "POST" "/auth/login" "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" "" "200"
-ADMIN_TOKEN=$(extract_or_fail "Admin" "$LAST_PAYLOAD" '.data.token' 'admin token')
+ADMIN_TOKEN=$(extract_or_fail "Admin" "$LAST_PAYLOAD" '.data.token // .token // .data' 'admin token')
 
 call_api "Patient" "POST" "/auth/login" "{\"email\":\"$PATIENT_EMAIL\",\"password\":\"$PATIENT_PASSWORD\"}" "" "200"
-PATIENT_TOKEN=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.token' 'patient token')
-PATIENT_USER_ID=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.userId' 'patient user id')
+PATIENT_TOKEN=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.token // .token // .data' 'patient token')
+PATIENT_USER_ID=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.userId // .data.user.id // .data.userId' 'patient user id')
 
 call_api "Doctor" "POST" "/auth/login" "{\"email\":\"$DOCTOR_EMAIL\",\"password\":\"$DOCTOR_PASSWORD\"}" "" "200"
-DOCTOR_TOKEN=$(extract_or_fail "Doctor" "$LAST_PAYLOAD" '.data.token' 'doctor token')
+DOCTOR_TOKEN=$(extract_or_fail "Doctor" "$LAST_PAYLOAD" '.data.token // .token // .data' 'doctor token')
 
-# 2) Admin checks catalog data
+# 1b) Refresh tokens for all actors
+call_api "Admin" "POST" "/auth/refresh" "" "$ADMIN_TOKEN" "200"
+ADMIN_TOKEN=$(extract_or_fail "Admin" "$LAST_PAYLOAD" '.data.token // .token // .data' 'refreshed admin token')
+
+call_api "Patient" "POST" "/auth/refresh" "" "$PATIENT_TOKEN" "200"
+PATIENT_TOKEN=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.token // .token // .data' 'refreshed patient token')
+
+call_api "Doctor" "POST" "/auth/refresh" "" "$DOCTOR_TOKEN" "200"
+DOCTOR_TOKEN=$(extract_or_fail "Doctor" "$LAST_PAYLOAD" '.data.token // .token // .data' 'refreshed doctor token')
+
+# 2) Patient profile read/update
+call_api "Patient" "GET" "/patients/me" "" "$PATIENT_TOKEN" "200"
+patient_patch_body=$(cat <<JSON
+{
+  "fullName": "$PATIENT_FULL_NAME",
+  "phone": "$PATIENT_PATCH_PHONE",
+  "address": "$PATIENT_PATCH_ADDRESS",
+  "gender": "$PATIENT_GENDER"
+}
+JSON
+)
+call_api "Patient" "PATCH" "/patients/me" "$patient_patch_body" "$PATIENT_TOKEN" "200"
+
+# 3) Admin checks catalog data
 call_api "Admin" "GET" "/hospitals" "" "$ADMIN_TOKEN" "200"
+call_api "Admin" "GET" "/hospitals/${HOSPITAL_ID}" "" "$ADMIN_TOKEN" "200"
 call_api "Admin" "GET" "/doctors" "" "$ADMIN_TOKEN" "200"
+call_api "Admin" "GET" "/doctors/${DOCTOR_ID}" "" "$ADMIN_TOKEN" "200"
 
-# 3) Doctor updates schedule for the appointment weekday
+# 4) Doctor updates schedule for all related days
 DAY_OF_WEEK=$($PYTHON_BIN - <<PY
 from datetime import datetime
 print(datetime.strptime("${APPOINTMENT_DATE}", "%Y-%m-%d").isoweekday())
 PY
 )
+create_schedule "Doctor" "$DAY_OF_WEEK" "$DOCTOR_TOKEN"
 
-schedule_body=$(cat <<JSON
-{
-  "doctorId": $DOCTOR_ID,
-  "dayOfWeek": $DAY_OF_WEEK,
-  "startTime": "${SCHEDULE_START_TIME}",
-  "endTime": "${SCHEDULE_END_TIME}",
-  "isAvailable": true
-}
-JSON
+if [[ "$CANCEL_APPOINTMENT_DATE" != "$APPOINTMENT_DATE" ]]; then
+  CANCEL_DAY_OF_WEEK=$($PYTHON_BIN - <<PY
+from datetime import datetime
+print(datetime.strptime("${CANCEL_APPOINTMENT_DATE}", "%Y-%m-%d").isoweekday())
+PY
 )
-call_api "Doctor" "POST" "/doctors/schedules" "$schedule_body" "$DOCTOR_TOKEN" "201"
+  create_schedule "Doctor" "$CANCEL_DAY_OF_WEEK" "$DOCTOR_TOKEN"
+fi
 
-# 4) Patient inspects available slots
+# 5) Doctor reviews schedules (all roles can read)
+call_api "Doctor" "GET" "/doctors/${DOCTOR_ID}/schedules" "" "$DOCTOR_TOKEN" "200"
+
+# 6) Patient inspects available slots
 call_api "Patient" "GET" "/doctors/${DOCTOR_ID}/available-slots?date=${APPOINTMENT_DATE}" "" "$PATIENT_TOKEN" "200"
 
-# 5) Patient books appointment
+# 7) Patient books appointment (primary flow)
 appointment_body=$(cat <<JSON
 {
   "doctorId": $DOCTOR_ID,
@@ -259,10 +314,14 @@ call_api "Patient" "POST" "/patients/appointments" "$appointment_body" "$PATIENT
 APPOINTMENT_ID=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.id' 'appointment id')
 APPOINTMENT_PATIENT_ID=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.patientId // .data.patient.id' 'appointment patient id')
 
-# 6) Patient reviews upcoming appointments
+# 8) Appointment detail & doctor confirmation
+call_api "Doctor" "GET" "/appointments/${APPOINTMENT_ID}" "" "$DOCTOR_TOKEN" "200"
+call_api "Doctor" "POST" "/appointments/${APPOINTMENT_ID}/confirm" "" "$DOCTOR_TOKEN" "200"
+
+# 9) Patient reviews upcoming appointments
 call_api "Patient" "GET" "/patients/appointments/upcoming" "" "$PATIENT_TOKEN" "200"
 
-# 7) Payment flow
+# 10) Payment flow
 payment_body=$(cat <<JSON
 {
   "appointmentId": $APPOINTMENT_ID,
@@ -274,7 +333,7 @@ call_api "Patient" "POST" "/payments" "$payment_body" "$PATIENT_TOKEN" "201"
 TRANSACTION_REF=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.transactionRef // .data.transactionReference' 'payment transactionRef')
 call_api "Patient" "POST" "/payments/${TRANSACTION_REF}/complete" "" "$PATIENT_TOKEN" "200"
 
-# 8) Doctor writes and approves medical record
+# 11) Doctor writes, patches, and approves medical record
 record_body=$(cat <<JSON
 {
   "appointmentId": $APPOINTMENT_ID,
@@ -287,9 +346,19 @@ JSON
 )
 call_api "Doctor" "POST" "/medical-records" "$record_body" "$DOCTOR_TOKEN" "201"
 RECORD_ID=$(extract_or_fail "Doctor" "$LAST_PAYLOAD" '.data.id' 'medical record id')
+
+record_patch_body=$(cat <<JSON
+{
+  "symptoms": "DAU DAU SOT NHE (patched)",
+  "treatment": "cap nhat thuoc khang sinh",
+  "notes": "patch truoc khi duyet"
+}
+JSON
+)
+call_api "Doctor" "PATCH" "/medical-records/${RECORD_ID}" "$record_patch_body" "$DOCTOR_TOKEN" "200"
 call_api "Doctor" "POST" "/medical-records/${RECORD_ID}/approve" "" "$DOCTOR_TOKEN" "200"
 
-# 9) Doctor issues prescription
+# 12) Doctor issues prescription
 prescription_body=$(cat <<JSON
 {
   "medicalRecordId": $RECORD_ID,
@@ -302,9 +371,20 @@ JSON
 )
 call_api "Doctor" "POST" "/prescriptions" "$prescription_body" "$DOCTOR_TOKEN" "201"
 
-# 10) Chat + feedback
+# 13) Chat + feedback + read status
 call_api "Patient" "POST" "/chat/appointments/${APPOINTMENT_ID}/messages" "{\"message\":\"$CHAT_MESSAGE\"}" "$PATIENT_TOKEN" "201"
+PATIENT_MESSAGE_ID=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.id' 'patient message id')
 call_api "Doctor" "GET" "/chat/appointments/${APPOINTMENT_ID}/messages/unread" "" "$DOCTOR_TOKEN" "200"
+read_body=$(cat <<JSON
+{
+  "upToMessageId": ${PATIENT_MESSAGE_ID}
+}
+JSON
+)
+call_api "Doctor" "POST" "/chat/appointments/${APPOINTMENT_ID}/messages/read" "$read_body" "$DOCTOR_TOKEN" "200"
+call_api "Doctor" "POST" "/chat/appointments/${APPOINTMENT_ID}/messages" "{\"message\":\"Da nhan duoc tin nhan, moi benh nhan toi kham.\"}" "$DOCTOR_TOKEN" "201"
+LAST_MSG_TIME=$(echo "$LAST_PAYLOAD" | jq -r '.data.createdAt')
+call_api "Patient" "GET" "/chat/appointments/${APPOINTMENT_ID}/messages?after=${LAST_MSG_TIME}" "" "$PATIENT_TOKEN" "200"
 
 feedback_body=$(cat <<JSON
 {
@@ -317,35 +397,12 @@ JSON
 )
 call_api "Patient" "POST" "/feedback" "$feedback_body" "$PATIENT_TOKEN" "201"
 
-# 11) Patient fetches medical records
+# 14) Patient fetches medical records & prescriptions
 call_api "Patient" "GET" "/medical-records/patient/${APPOINTMENT_PATIENT_ID}" "" "$PATIENT_TOKEN" "200"
-
-# 12) Doctor schedules read-back
-call_api "Doctor" "GET" "/doctors/${DOCTOR_ID}/schedules" "" "$DOCTOR_TOKEN" "200"
-
-# 13) Admin filters
-call_api "Admin" "GET" "/doctors/department/${DEPARTMENT_ID}" "" "$ADMIN_TOKEN" "200"
-call_api "Admin" "GET" "/doctors/hospital/${HOSPITAL_ID}" "" "$ADMIN_TOKEN" "200"
-
-# 14) Payments read-back by appointment
-call_api "Patient" "GET" "/payments/appointment/${APPOINTMENT_ID}" "" "$PATIENT_TOKEN" "200"
-
-# 15) Medical record read-back by id
 call_api "Patient" "GET" "/medical-records/${RECORD_ID}" "" "$PATIENT_TOKEN" "200"
-
-# 16) Prescription read-back by medical record
 call_api "Patient" "GET" "/prescriptions/medical-record/${RECORD_ID}" "" "$PATIENT_TOKEN" "200"
 
-# 17) Chat reply + polling
-call_api "Doctor" "POST" "/chat/appointments/${APPOINTMENT_ID}/messages" "{\"message\":\"Da nhan duoc tin nhan, moi benh nhan toi kham.\"}" "$DOCTOR_TOKEN" "201"
-LAST_MSG_TIME=$(echo "$LAST_PAYLOAD" | jq -r '.data.createdAt')
-call_api "Patient" "GET" "/chat/appointments/${APPOINTMENT_ID}/messages?after=${LAST_MSG_TIME}" "" "$PATIENT_TOKEN" "200"
-
-# 18) Feedback read-back
-call_api "Patient" "GET" "/feedback/doctor/${DOCTOR_ID}" "" "$PATIENT_TOKEN" "200"
-call_api "Patient" "GET" "/feedback/doctor/${DOCTOR_ID}/average-rating" "" "$PATIENT_TOKEN" "200"
-
-# 19) Medical record files (multipart upload + list + download)
+# 15) Medical record files (multipart upload + list + download)
 TMP_FILE="./artifacts/tmp_medical_record_note.txt"
 mkdir -p "$(dirname "$TMP_FILE")"
 echo "CHRMS auto-test file upload - $(date)" > "$TMP_FILE"
@@ -375,8 +432,41 @@ dl_status=$(curl -sS -o /dev/null -w "%{http_code}" -X GET "${BASE_URL}/medical-
 info "Status: $dl_status"
 [[ "$dl_status" == "200" ]] || fail "Patient" "$dl_status" "200" "/medical-records/files/${FILE_ID}/download" "(binary body omitted)"
 
-# 20) Appointment history
+# 16) Admin filters and payments read-back
+call_api "Admin" "GET" "/doctors/department/${DEPARTMENT_ID}" "" "$ADMIN_TOKEN" "200"
+call_api "Admin" "GET" "/doctors/hospital/${HOSPITAL_ID}" "" "$ADMIN_TOKEN" "200"
+call_api "Patient" "GET" "/payments/appointment/${APPOINTMENT_ID}" "" "$PATIENT_TOKEN" "200"
+
+# 17) Appointment completion & history
+call_api "Doctor" "POST" "/appointments/${APPOINTMENT_ID}/complete" "" "$DOCTOR_TOKEN" "200"
 call_api "Patient" "GET" "/patients/appointments/history" "" "$PATIENT_TOKEN" "200"
+
+# 18) Additional appointment for cancel scenario
+call_api "Patient" "GET" "/doctors/${DOCTOR_ID}/available-slots?date=${CANCEL_APPOINTMENT_DATE}" "" "$PATIENT_TOKEN" "200"
+second_appt_body=$(cat <<JSON
+{
+  "doctorId": $DOCTOR_ID,
+  "hospitalId": $HOSPITAL_ID,
+  "departmentId": $DEPARTMENT_ID,
+  "appointmentDate": "${CANCEL_APPOINTMENT_DATE}",
+  "appointmentTime": "${CANCEL_APPOINTMENT_TIME}",
+  "notes": "Cancel scenario"
+}
+JSON
+)
+call_api "Patient" "POST" "/patients/appointments" "$second_appt_body" "$PATIENT_TOKEN" "201"
+CANCEL_APPOINTMENT_ID=$(extract_or_fail "Patient" "$LAST_PAYLOAD" '.data.id' 'cancel appointment id')
+call_api "Admin" "GET" "/appointments/${CANCEL_APPOINTMENT_ID}" "" "$ADMIN_TOKEN" "200"
+call_api "Admin" "POST" "/appointments/${CANCEL_APPOINTMENT_ID}/cancel" "{\"reason\":\"Auto cancel scenario\"}" "$ADMIN_TOKEN" "200"
+
+# 19) Feedback read-back
+call_api "Patient" "GET" "/feedback/doctor/${DOCTOR_ID}" "" "$PATIENT_TOKEN" "200"
+call_api "Patient" "GET" "/feedback/doctor/${DOCTOR_ID}/average-rating" "" "$PATIENT_TOKEN" "200"
+
+# 20) Logout all actors (token blacklist coverage)
+call_api "Patient" "POST" "/auth/logout" "" "$PATIENT_TOKEN" "200"
+call_api "Doctor" "POST" "/auth/logout" "" "$DOCTOR_TOKEN" "200"
+call_api "Admin" "POST" "/auth/logout" "" "$ADMIN_TOKEN" "200"
 
 info ""
 info "[OK] Flow finished. See log: $LOG_FILE"
