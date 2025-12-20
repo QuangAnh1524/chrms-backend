@@ -2,7 +2,7 @@
 
 Base URL: `http://localhost:8080/api/v1`
 
-## 📋 Complete API List (42 endpoint)
+## 📋 Complete API List (46 endpoint)
 
 | # | Method & Path | Vai trò sử dụng | Body/Params bắt buộc | Trả về quan trọng |
 | --- | --- | --- | --- | --- |
@@ -41,13 +41,17 @@ Base URL: `http://localhost:8080/api/v1`
 | 33 | `GET /medical-records/files/{id}/download` | PATIENT/DOCTOR/ADMIN | Path: `id` | Tải file |
 | 34 | `POST /prescriptions` | DOCTOR | `{ medicalRecordId, items:[{ medicineId, dosage, frequency, duration, quantity, instructions? }] }` | Đơn thuốc + item |
 | 35 | `GET /prescriptions/medical-record/{medicalRecordId}` | PATIENT/DOCTOR/ADMIN | Path: `medicalRecordId` | Đơn thuốc theo hồ sơ |
-| 36 | `POST /chat/appointments/{appointmentId}/messages` | PATIENT/DOCTOR/ADMIN | Path: `appointmentId`, Body `{ message }` | Tin nhắn gắn userId |
-| 37 | `GET /chat/appointments/{appointmentId}/messages?after={datetime}` | PATIENT/DOCTOR/ADMIN | Query: `after`? | Polling (có cache 50 tin) |
-| 38 | `GET /chat/appointments/{appointmentId}/messages/unread` | PATIENT/DOCTOR/ADMIN | — | Tin nhắn chưa đọc theo user |
-| 39 | `POST /chat/appointments/{appointmentId}/messages/read` | PATIENT/DOCTOR/ADMIN | `{ upToMessageId? | upToDatetime? }` | Đánh dấu đã đọc |
-| 40 | `POST /feedback` | PATIENT | `{ appointmentId, rating (1-5), comment? }` | Feedback đã lưu |
-| 41 | `GET /feedback/doctor/{doctorId}` | PATIENT/DOCTOR/ADMIN | Path: `doctorId` | Danh sách feedback |
-| 42 | `GET /feedback/doctor/{doctorId}/average-rating` | PATIENT/DOCTOR/ADMIN | Path: `doctorId` | Điểm trung bình (cache 10 phút) |
+| 36 | `POST /medical-records/{id}/share` | DOCTOR/ADMIN | Path: `id`; `{ toHospitalId, notes?, expiryDate? }` | Tạo chia sẻ hồ sơ sang viện khác |
+| 37 | `GET /medical-records/shared-to-me` | DOCTOR/ADMIN | Query: `patientId?` (dựa trên hospital của doctor) | Hồ sơ được chia sẻ tới viện của bác sĩ |
+| 38 | `GET /medical-records/my-shares` | DOCTOR/ADMIN | — | Danh sách share do user tạo |
+| 39 | `DELETE /medical-records/shares/{id}` | DOCTOR/ADMIN | Path: `id` | Thu hồi share |
+| 40 | `POST /chat/appointments/{appointmentId}/messages` | PATIENT/DOCTOR/ADMIN | Path: `appointmentId`, Body `{ message }` | Tin nhắn gắn userId |
+| 41 | `GET /chat/appointments/{appointmentId}/messages?after={datetime}` | PATIENT/DOCTOR/ADMIN | Query: `after`? | Polling (có cache 50 tin) |
+| 42 | `GET /chat/appointments/{appointmentId}/messages/unread` | PATIENT/DOCTOR/ADMIN | — | Tin nhắn chưa đọc theo user |
+| 43 | `POST /chat/appointments/{appointmentId}/messages/read` | PATIENT/DOCTOR/ADMIN | `{ upToMessageId? | upToDatetime? }` | Đánh dấu đã đọc |
+| 44 | `POST /feedback` | PATIENT | `{ appointmentId, rating (1-5), comment? }` | Feedback đã lưu |
+| 45 | `GET /feedback/doctor/{doctorId}` | PATIENT/DOCTOR/ADMIN | Path: `doctorId` | Danh sách feedback |
+| 46 | `GET /feedback/doctor/{doctorId}/average-rating` | PATIENT/DOCTOR/ADMIN | Path: `doctorId` | Điểm trung bình (cache 10 phút) |
 
 ---
 
@@ -185,4 +189,3 @@ Base URL: `http://localhost:8080/api/v1`
 ---
 
 **Total: 42 API Endpoints** ✅
-

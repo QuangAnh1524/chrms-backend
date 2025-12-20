@@ -53,5 +53,6 @@ public class RedisCacheService {
     public static final String CACHE_CHAT_PREFIX = "chat:";
     public static final String CACHE_NOTIFICATION_PREFIX = "notification:";
     public static final String CACHE_DOCTOR_RATING_PREFIX = "doctor:rating:";
+    public static final String CACHE_RECORD_SHARE_ACCESS_PREFIX = "record_share:access:";
+    public static final String CACHE_RECORD_SHARE_SHARED_TO_PREFIX = "record_share:shared_to:";
 }
-

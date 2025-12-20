@@ -31,6 +31,12 @@
 - TTL: 10 phút
 - Invalidate khi có feedback mới
 
+#### e. Record Share Access & Listing
+- **ShareMedicalRecordUseCase / GetSharedMedicalRecordsUseCase / RevokeRecordShareUseCase / MedicalRecordFileController**
+- Cache quyền truy cập hồ sơ được share: `record_share:access:{hospitalId}:{recordId}` (TTL theo `expiryDate` nếu có, hoặc không đặt TTL khi chia sẻ vô thời hạn).
+- Cache danh sách hồ sơ được share tới viện: `record_share:shared_to:{hospitalId}` và `record_share:shared_to:{hospitalId}:patient:{patientId}` (TTL 5 phút).
+- Invalidate khi tạo share mới hoặc thu hồi share: xóa key danh sách và key access tương ứng.
+
 #### d. JWT Token Blacklist
 - **JwtTokenProvider**: Check blacklist khi validate token
 - **AuthController**: Blacklist token khi logout
@@ -44,6 +50,8 @@ jwt:blacklist:{token}          - JWT blacklist
 search:{symptoms}:{diagnosis}  - Search results
 chat:{appointmentId}           - Chat messages
 doctor:rating:{doctorId}       - Doctor average rating
+record_share:access:{hospitalId}:{recordId} - Quyền truy cập hồ sơ share
+record_share:shared_to:{hospitalId}[:patient:{patientId}] - Danh sách hồ sơ share tới viện
 notification:{userId}          - User notifications (future)
 ```
 
@@ -120,4 +128,3 @@ if (cacheService.isTokenBlacklisted(token)) {
 2. Unread messages không cache
 3. JWT blacklist TTL = token expiration time
 4. Cache size: Monitor Redis memory usage trong production
-

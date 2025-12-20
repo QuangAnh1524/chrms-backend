@@ -1,4 +1,4 @@
-package com.chrms.domain.entity;
+package com.chrms.presentation.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RecordShare {
+public class RecordShareResponse {
     private Long id;
     private Long medicalRecordId;
     private Long fromHospitalId;
@@ -21,3 +21,4 @@ public class RecordShare {
     private LocalDateTime expiryDate;
     private String notes;
 }
+
