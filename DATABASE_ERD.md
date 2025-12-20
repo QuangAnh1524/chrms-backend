@@ -184,6 +184,7 @@ erDiagram
         bigint to_hospital_id FK
         bigint shared_by FK
         datetime shared_at
+        datetime expiry_date
         varchar notes
     }
 

@@ -8,7 +8,7 @@ Centralized Health Record Management System (MVP) cho nền tảng y tế số H
 ## 🧩 Thành phần & công nghệ
 - **Backend:** Spring Boot 3, Java 17, Maven.
 - **Database:** PostgreSQL + Flyway migration/seed tự chạy khi khởi động.
-- **Cache:** Redis (cache danh mục, token blacklist nếu cần).
+- **Cache:** Redis (cache danh mục, token blacklist, chia sẻ hồ sơ liên viện).
 - **Bảo mật:** Spring Security + JWT; phân quyền PATIENT/DOCTOR/ADMIN.
 - **File:** lưu metadata qua REST (storage triển khai phụ thuộc môi trường: local/Docker volume).
 - **Docs:** Swagger UI, Postman collection, bảng API tóm tắt.
@@ -17,13 +17,14 @@ Centralized Health Record Management System (MVP) cho nền tảng y tế số H
 - **Quản lý người dùng & phân quyền:** đăng ký/đăng nhập JWT, phân vai trò; gửi email xác nhận lịch khám qua SMTP (cần cấu hình `spring.mail.*`).
 - **Đặt lịch khám:** bác sĩ tạo lịch làm việc, bệnh nhân xem slot trống, đặt lịch, quản trị viên kiểm soát dữ liệu danh mục (bệnh viện, khoa, bác sĩ).
 - **Khám & hồ sơ bệnh án:** bác sĩ tạo hồ sơ, upload file cận lâm sàng, duyệt hồ sơ và phát hành đơn thuốc.
+- **Chia sẻ hồ sơ liên viện:** bác sĩ/admin share hồ sơ (kèm file, đơn thuốc) cho bệnh viện khác, cấu hình ngày hết hạn và thu hồi quyền.
 - **Thanh toán:** tạo giao dịch, hoàn tất thanh toán theo appointment (mô phỏng, không tích hợp cổng thật trong repo này).
 - **Chat & phản hồi:** chat theo appointment, bệnh nhân gửi đánh giá bác sĩ.
 - **Hạ tầng:** Clean Architecture; Flyway migration/seed; Redis cache; global exception handler và logging.
 
 ## 🔁 Redis đang hoạt động ở đâu?
 - **Cấu hình & TTL:** `RedisConfig` bật `@EnableCaching`, tạo `RedisTemplate` + `CacheManager` với TTL mặc định từ `app.cache.ttl` (5 phút trong `application.yml`).
-- **Service thao tác cache:** `RedisCacheService` cung cấp set/get/delete, đặt TTL tùy ý và một số prefix (`search:`, `chat:`, `doctor:rating:`, `jwt:blacklist:`).
+- **Service thao tác cache:** `RedisCacheService` cung cấp set/get/delete, đặt TTL tùy ý và một số prefix (`search:`, `chat:`, `doctor:rating:`, `record_share:access:`, `record_share:shared_to:`, `jwt:blacklist:`).
 - **Blacklist JWT khi logout:** `AuthController.logout` đọc token hiện tại, tính thời gian hết hạn và lưu vào Redis với key `jwt:blacklist:<token>`; việc validate token sẽ kiểm tra blacklist.
 - **Cache kết quả search bệnh án:** `SearchMedicalRecordsUseCase` đánh dấu `@Cacheable` cho tìm kiếm theo triệu chứng/chẩn đoán để giảm truy vấn DB.
 - **Cache tin nhắn chat mới nhất:** `GetChatMessagesUseCase` cache tối đa 50 message gần nhất theo appointment khi không có tham số `after` (polling realtime thì bỏ cache).
@@ -34,6 +35,7 @@ Centralized Health Record Management System (MVP) cho nền tảng y tế số H
 - **Danh mục & lịch bác sĩ:** Admin duyệt danh mục bệnh viện/khoa/bác sĩ; bác sĩ tạo ca làm việc theo `dayOfWeek`, `startTime`, `endTime`; bệnh nhân đọc slot trống từ `available-slots`.
 - **Đặt lịch & thanh toán:** bệnh nhân đặt `appointment` kèm hospital/department/doctor; hệ thống phát sinh `queueNumber`; tạo giao dịch `payments` và đánh dấu hoàn tất (trạng thái PENDING → COMPLETED).
 - **Khám bệnh & hồ sơ:** bác sĩ tạo `medical-record`, có thể upload file, duyệt hồ sơ (đổi trạng thái `DRAFT` → `APPROVED`), và tạo `prescription` gồm danh sách thuốc/ liều.
+- **Chia sẻ hồ sơ liên viện:** `POST /medical-records/{id}/share` chia sẻ hồ sơ sang bệnh viện khác; bác sĩ bệnh viện nhận share truy cập qua `/medical-records/shared-to-me`, có thể lọc `patientId`; xem danh sách mình đã share `/medical-records/my-shares`; thu hồi `/medical-records/shares/{id}`. Hệ thống tự cache quyền truy cập theo hospitalId + recordId và xóa cache khi share/thu hồi.
 - **Chat & thông báo:** hai bên gửi tin nhắn qua endpoint `/chat/appointments/{id}/messages`; polling lấy toàn bộ hoặc chỉ unread; cache message giúp load nhanh lịch sử ngắn hạn.
 - **Feedback & rating:** bệnh nhân gửi đánh giá sau khám; API cung cấp danh sách feedback và trung bình rating cho bác sĩ (đã cache).
 
@@ -146,7 +148,7 @@ Admin:    admin@chrms.vn    / password123
 - Ngày/giờ: `YYYY-MM-DD`, `HH:mm:ss` hoặc `YYYY-MM-DDTHH:mm:ss` (UTC+7 mặc định khi seed).
 - Lỗi chuẩn: `{ "status": 400|401|403|404|409|500, "error": "<code>", "message": "<detail>" }` qua GlobalExceptionHandler.
 
-**Tổng cộng 42 endpoint REST** (đã liệt kê đầy đủ dưới đây và trong [API_SUMMARY.md](API_SUMMARY.md)):
+**Tổng cộng 46 endpoint REST** (đã liệt kê đầy đủ dưới đây và trong [API_SUMMARY.md](API_SUMMARY.md)):
 
 | Nhóm | Endpoint | Mô tả nhanh | Body/params tối thiểu |
 | --- | --- | --- | --- |
@@ -185,6 +187,10 @@ Admin:    admin@chrms.vn    / password123
 |  | GET `/medical-records/files/{id}/download` | Tải file đính kèm | Path: `id` |
 | Prescription | POST `/prescriptions` | Tạo đơn thuốc | `{ medicalRecordId, items:[{ medicineId, dosage, frequency, duration, quantity, instructions? }] }` |
 |  | GET `/prescriptions/medical-record/{medicalRecordId}` | Lấy đơn thuốc theo hồ sơ | Path: `medicalRecordId` |
+| Record Share | POST `/medical-records/{id}/share` | Chia sẻ hồ sơ sang bệnh viện khác | `{ toHospitalId, notes?, expiryDate? }` |
+|  | GET `/medical-records/shared-to-me` | Hồ sơ được share tới bệnh viện (theo doctor profile) | Query: `patientId?` |
+|  | GET `/medical-records/my-shares` | Danh sách hồ sơ mình đã chia sẻ | — |
+|  | DELETE `/medical-records/shares/{id}` | Thu hồi quyền chia sẻ | Path: `id` |
 | Chat | POST `/chat/appointments/{appointmentId}/messages` | Gửi chat | `{ message }` (lấy `userId` từ JWT) |
 |  | GET `/chat/appointments/{appointmentId}/messages` | Poll danh sách tin nhắn | Query: `after=YYYY-MM-DDTHH:mm:ss`? |
 |  | GET `/chat/appointments/{appointmentId}/messages/unread` | Tin nhắn chưa đọc | Path: `appointmentId` |
@@ -198,6 +204,7 @@ Admin:    admin@chrms.vn    / password123
 2) **Bác sĩ khám & ra đơn:** Login bác sĩ → `POST /doctors/schedules` → sau khi có appointment → `POST /medical-records` → upload file → `POST /medical-records/{id}/approve` → `POST /prescriptions`.
 3) **Chat:** Hai phía gửi `POST /chat/appointments/{id}/messages`; FE poll `GET /chat/appointments/{id}/messages?after=<time>` hoặc `GET .../unread`.
 4) **Feedback:** Patient sau khám → `POST /feedback` → hiển thị `GET /feedback/doctor/{doctorId}` và `.../average-rating`.
+5) **Chia sẻ hồ sơ liên viện:** Bác sĩ viện nguồn dùng `POST /medical-records/{id}/share` (chọn `toHospitalId`, `notes?`, `expiryDate?`). Bác sĩ viện đích xem danh sách `/medical-records/shared-to-me?patientId=` (kèm file, đơn thuốc) và được truy cập file nhờ cache quyền. Người chia sẻ xem `/medical-records/my-shares` và thu hồi bằng `DELETE /medical-records/shares/{shareId}`.
 
 ### 🧭 Luồng nghiệp vụ chi tiết (có thông tin API)
 | Luồng | Vai trò chính | Các bước chính | API & dữ liệu tối thiểu |
@@ -206,6 +213,7 @@ Admin:    admin@chrms.vn    / password123
 | Khám bệnh & hồ sơ | Doctor | 1) Tạo lịch làm việc → 2) Nhận bệnh nhân có appointment → 3) Lập/điều chỉnh hồ sơ → 4) Upload file → 5) Duyệt hồ sơ → 6) Kê đơn | 1) `POST /doctors/schedules` `{ doctorId, dayOfWeek, startTime, endTime, isAvailable? }`.<br>2) `GET /patients/appointments/upcoming` (đối với patient) hoặc custom search (tích hợp BE); appointment liên kết doctorId, có thể `POST /appointments/{id}/confirm|cancel|complete` để cập nhật trạng thái.<br>3) `POST /medical-records` `{ appointmentId, diagnosis, notes }` trả `status=DRAFT` + nếu cần chỉnh sửa thì `PATCH /medical-records/{id}`.<br>4) `POST /medical-records/files/upload` multipart `medicalRecordId`, `file`, `fileType`.<br>5) `POST /medical-records/{id}/approve` → `status=APPROVED` (hồ sơ khóa để đọc).<br>6) `POST /prescriptions` `{ medicalRecordId, medicines:[{ medicineId, dosage, quantity, instructions? }] }`. |
 | Chat khám bệnh | Patient + Doctor | 1) Hai bên gửi tin nhắn → 2) Poll danh sách → 3) Lọc tin chưa đọc | 1) `POST /chat/appointments/{appointmentId}/messages` với `{ message }` (backend lấy `userId` từ JWT).<br>2) `GET /chat/appointments/{appointmentId}/messages?after=YYYY-MM-DDTHH:mm:ss` để tải incremental.<br>3) `GET /chat/appointments/{appointmentId}/messages/unread` để lấy tin chưa đọc, cache hỗ trợ tải nhanh + đánh dấu đọc bằng `POST /chat/appointments/{appointmentId}/messages/read` với `{ upToMessageId | upToDatetime }`. |
 | Feedback & rating | Patient | 1) Gửi đánh giá sau khám → 2) FE hiển thị danh sách và điểm trung bình | 1) `POST /feedback` `{ appointmentId, rating (1-5), comment? }`.<br>2) `GET /feedback/doctor/{doctorId}` và `GET /feedback/doctor/{doctorId}/average-rating` (đã cache 10 phút). |
+| Chia sẻ hồ sơ liên viện | Doctor/Admin | 1) Viện nguồn tạo chia sẻ → 2) Viện đích xem hồ sơ được chia sẻ → 3) Thu hồi nếu cần | 1) `POST /medical-records/{id}/share` với `{ toHospitalId, notes?, expiryDate? }` (bác sĩ phụ trách hoặc admin).<br>2) Bác sĩ viện đích dùng `GET /medical-records/shared-to-me?patientId=` để xem hồ sơ + file + đơn thuốc; quyền truy cập file được cache bằng key `record_share:access:{hospitalId}:{recordId}`.<br>3) Người chia sẻ xem lại `GET /medical-records/my-shares` và thu hồi bằng `DELETE /medical-records/shares/{shareId}` (cache list/access được xóa). |
 
 ### 🔗 API hữu ích khác
 - `GET /medical-records/patient/{patientId}`: FE dùng để tra cứu lịch sử khám của bệnh nhân đã đăng nhập.

@@ -1,5 +1,6 @@
-package com.chrms.domain.entity;
+package com.chrms.presentation.dto.request;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,13 +12,10 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RecordShare {
-    private Long id;
-    private Long medicalRecordId;
-    private Long fromHospitalId;
+public class ShareMedicalRecordRequest {
+    @NotNull
     private Long toHospitalId;
-    private Long sharedBy;
-    private LocalDateTime sharedAt;
-    private LocalDateTime expiryDate;
     private String notes;
+    private LocalDateTime expiryDate;
 }
+

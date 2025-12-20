@@ -9,6 +9,8 @@ import com.chrms.domain.repository.MedicalRecordRepository;
 import com.chrms.domain.repository.MedicalRecordFileRepository;
 import com.chrms.domain.repository.PatientRepository;
 import com.chrms.domain.repository.DoctorRepository;
+import com.chrms.domain.repository.RecordShareRepository;
+import com.chrms.infrastructure.cache.RedisCacheService;
 import com.chrms.infrastructure.security.SecurityUtils;
 import com.chrms.presentation.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,6 +47,8 @@ public class MedicalRecordFileController {
     private final MedicalRecordRepository medicalRecordRepository;
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
+    private final RecordShareRepository recordShareRepository;
+    private final RedisCacheService cacheService;
 
     @PostMapping("/upload")
     @ResponseStatus(HttpStatus.CREATED)
@@ -142,13 +146,28 @@ public class MedicalRecordFileController {
         }
 
         if (role == Role.DOCTOR) {
-            Long doctorId = doctorRepository.findByUserId(userId)
-                    .orElseThrow(() -> new com.chrms.domain.exception.EntityNotFoundException("Doctor profile not found for user: " + userId))
-                    .getId();
-            if (!record.getDoctorId().equals(doctorId)) {
-                throw new UnauthorizedException("Bác sĩ không phụ trách hồ sơ này");
+            var doctor = doctorRepository.findByUserId(userId)
+                    .orElseThrow(() -> new com.chrms.domain.exception.EntityNotFoundException("Doctor profile not found for user: " + userId));
+            if (record.getDoctorId().equals(doctor.getId())) {
+                return;
             }
-            return;
+
+            Long hospitalId = doctor.getHospitalId();
+            String accessKey = RedisCacheService.CACHE_RECORD_SHARE_ACCESS_PREFIX + hospitalId + ":" + medicalRecordId;
+            Object cachedAccess = cacheService.get(accessKey);
+            if (cachedAccess instanceof Boolean cached && cached) {
+                return;
+            }
+
+            boolean hasShareAccess = recordShareRepository.findByMedicalRecordId(medicalRecordId).stream()
+                    .anyMatch(share -> share.getToHospitalId().equals(hospitalId)
+                            && (share.getExpiryDate() == null || share.getExpiryDate().isAfter(java.time.LocalDateTime.now())));
+            if (hasShareAccess) {
+                cacheService.set(accessKey, true, 5, java.util.concurrent.TimeUnit.MINUTES);
+                return;
+            }
+
+            throw new UnauthorizedException("Bác sĩ không có quyền truy cập hồ sơ này");
         }
 
         throw new UnauthorizedException("Không có quyền truy cập tệp hồ sơ này");
@@ -167,4 +186,3 @@ public class MedicalRecordFileController {
         private java.time.LocalDateTime createdAt;
     }
 }
-

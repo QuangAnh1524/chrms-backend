@@ -18,6 +18,7 @@ src/main/java/com/chrms/
 │   │   ├── Medicine.java
 │   │   ├── Schedule.java
 │   │   ├── ChatMessage.java
+│   │   ├── RecordShare.java
 │   │   └── Feedback.java
 │   │
 │   ├── valueobject/                  # Value objects (immutable)
@@ -41,6 +42,7 @@ src/main/java/com/chrms/
 │   │   ├── MedicalRecordRepository.java
 │   │   ├── AppointmentRepository.java
 │   │   ├── PrescriptionRepository.java
+│   │   ├── RecordShareRepository.java
 │   │   └── ChatMessageRepository.java
 │   │
 │   └── exception/                    # Domain exceptions
