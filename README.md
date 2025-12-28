@@ -15,7 +15,7 @@ Centralized Health Record Management System (MVP) cho nền tảng y tế số H
 
 ## ✨ Khối chức năng chính
 - **Quản lý người dùng & phân quyền:** đăng ký/đăng nhập JWT, phân vai trò; gửi email xác nhận lịch khám qua SMTP (cần cấu hình `spring.mail.*`).
-- **Đặt lịch khám:** bác sĩ tạo lịch làm việc, bệnh nhân xem slot trống, đặt lịch, quản trị viên kiểm soát dữ liệu danh mục (bệnh viện, khoa, bác sĩ).
+- **Đặt lịch khám:** bác sĩ tạo lịch làm việc, bệnh nhân xem slot trống, đặt lịch. (Danh mục bệnh viện/bác sĩ hiện cung cấp API đọc.)
 - **Khám & hồ sơ bệnh án:** bác sĩ tạo hồ sơ, upload file cận lâm sàng, duyệt hồ sơ và phát hành đơn thuốc.
 - **Chia sẻ hồ sơ liên viện:** bác sĩ/admin share hồ sơ (kèm file, đơn thuốc) cho bệnh viện khác, cấu hình ngày hết hạn và thu hồi quyền.
 - **Thanh toán:** tạo giao dịch, hoàn tất thanh toán theo appointment (mô phỏng, không tích hợp cổng thật trong repo này).
@@ -42,28 +42,20 @@ Centralized Health Record Management System (MVP) cho nền tảng y tế số H
 ## 🗂 Cấu trúc dự án (Clean Architecture)
 ```
 src/main/java/com/chrms/
-├─ domain/                     # Entity, Value Object, DomainEvent, exception, port (repository/cache/email/file)
-│  ├─ model/                   # Patient, Doctor, Appointment, Schedule, MedicalRecord, Prescription...
+├─ domain/                     # Entity, Value Object, exception, repository interface
+│  ├─ entity/                  # Patient, Doctor, Appointment, Schedule, MedicalRecord, Prescription...
 │  ├─ exception/               # DomainException, NotFoundException, BusinessValidationException...
-│  └─ port/                    # Repository/Cache/Notifier abstractions (không phụ thuộc framework)
+│  └─ repository/              # Repository abstractions (không phụ thuộc framework)
 │
-├─ usecase/                    # Application service (orchestrate logic, transaction boundary)
-│  ├─ auth/                    # Register/Login, token refresh, password handling
-│  ├─ patient/                 # Appointment, payment, feedback flow của bệnh nhân
-│  ├─ doctor/                  # Lịch làm việc, medical record, prescription, chat
-│  ├─ admin/                   # Quản trị danh mục bệnh viện/khoa/bác sĩ
-│  └─ shared/                  # Base use case, mapper hỗ trợ nhiều module
+├─ application/                # Application service (orchestrate logic, transaction boundary)
+│  └─ usecase/                 # Auth/Patient/Doctor/Shared flows
 │
-├─ adapter/                    # Triển khai port (REST, persistence, cache, email, file)
-│  ├─ in/web/                  # Controller + request/response DTO + validation
-│  ├─ out/persistence/         # JPA entity, repository impl, mapper entity ↔ domain
-│  ├─ out/cache/               # Redis cache adapter
-│  ├─ out/notification/        # Email/SMS adapter (stub), token blacklisting nếu bật
-│  └─ out/storage/             # Lưu file cận lâm sàng, phục vụ download
+├─ presentation/               # REST controllers + request/response DTO + mapper
 │
-└─ infrastructure/             # Spring config, security, exception, util
-   ├─ config/                  # Bean config, OpenAPI, WebConfig, Flyway
+└─ infrastructure/             # Spring config, security, exception, util, cache
+   ├─ config/                  # Bean config, OpenAPI, Flyway, RedisConfig
    ├─ security/                # JWT filter, authentication/authorization, password encoder
+   ├─ cache/                   # RedisCacheService
    └─ exception/               # GlobalExceptionHandler, error response schema
 
 src/main/resources/
@@ -93,12 +85,12 @@ src/main/resources/
 └─ README.md                        # Tài liệu tổng quan dự án (file này)
 ```
 
-**Biến môi trường quan trọng** (có giá trị mẫu trong `application-docker.yml`):
+**Biến môi trường quan trọng** (có giá trị mẫu trong `application-docker.yml`/`application.yml`):
 - `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`
 - `SPRING_REDIS_HOST`, `SPRING_REDIS_PORT`
 - `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD` (SMTP gửi email xác nhận lịch)
 - `JWT_SECRET`, `JWT_EXPIRATION_MINUTES`
-- `FILE_STORAGE_PATH` (thư mục mount trong Docker volume khi lưu file)
+- `APP_FILE_UPLOAD_DIR`, `APP_FILE_EXPORT_DIR` (map tới `app.file.upload-dir`, `app.file.export-dir`)
 
 ## 🚀 Khởi chạy nhanh
 ### Chạy full stack bằng Docker (khuyến nghị)
