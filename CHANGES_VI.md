@@ -2,6 +2,7 @@
 
 ## Đăng ký tài khoản
 - Tài khoản PATIENT vẫn được tạo kèm hồ sơ bệnh nhân nhưng **không bắt buộc** các trường nhân khẩu (ngày sinh, giới tính, địa chỉ, liên hệ khẩn cấp, nhóm máu, dị ứng); người dùng có thể bổ sung sau. Xem `RegisterUseCase`.
+- Tài khoản DOCTOR khi đăng ký sẽ tạo thêm hồ sơ bác sĩ và yêu cầu các trường `hospitalId`, `specialty`, `licenseNumber` (các trường `departmentId`, `experienceYears`, `consultationFee` là tuỳ chọn).
 
 ## Đặt lịch khám
 - Bệnh nhân phải chọn **khoa** và hệ thống kiểm tra khoa thuộc bệnh viện, bác sĩ có thuộc khoa/bệnh viện đó không.
