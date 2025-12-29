@@ -41,4 +41,12 @@ public class RegisterRequest {
     private String emergencyContact;
     private String bloodType;
     private String allergies;
+
+    // Doctor-specific fields (required when role is DOCTOR)
+    private Long hospitalId;
+    private Long departmentId;
+    private String specialty;
+    private String licenseNumber;
+    private Integer experienceYears;
+    private java.math.BigDecimal consultationFee;
 }
