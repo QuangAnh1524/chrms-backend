@@ -13,6 +13,9 @@
 ## Danh sách lịch khám cho bệnh nhân
 - Hai API cung cấp lịch sắp tới và lịch sử, kèm tên bệnh viện, bác sĩ, khoa, giờ khám (đã chuẩn hóa), trạng thái và số thứ tự.
 
+## Danh sách lịch khám cho bác sĩ
+- Bổ sung API `GET /doctors/appointments/upcoming` để bác sĩ xem lịch khám sắp tới (kèm bệnh nhân, bệnh viện, khoa, giờ khám, trạng thái).
+
 ## Chia sẻ hồ sơ liên viện
 - Thêm luồng chia sẻ hồ sơ bệnh án sang bệnh viện khác: tạo share (`POST /medical-records/{id}/share`), xem hồ sơ được share tới viện của bác sĩ (`GET /medical-records/shared-to-me`), xem danh sách share đã tạo (`GET /medical-records/my-shares`), thu hồi (`DELETE /medical-records/shares/{id}`).
 - Quyền truy cập file/đơn thuốc được cấp cho bệnh viện đích, có cache Redis `record_share:access:{hospitalId}:{recordId}` và xóa cache khi share/thu hồi.

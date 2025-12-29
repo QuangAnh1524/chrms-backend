@@ -332,7 +332,34 @@ Authorization: Bearer {token}
 }
 ```
 
-### 13. Get Appointment History (Patient)
+### 13. Get Upcoming Appointments (Doctor)
+**GET** `/doctors/appointments/upcoming`
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Response (ví dụ):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 11,
+      "patientName": "Nguyễn Văn A",
+      "hospitalName": "Bệnh viện Bạch Mai",
+      "departmentName": "Nội tổng hợp",
+      "appointmentDate": "2025-12-10",
+      "appointmentTime": "09:30",
+      "queueNumber": 2,
+      "status": "CONFIRMED"
+    }
+  ]
+}
+```
+
+### 14. Get Appointment History (Patient)
 **GET** `/patients/appointments/history`
 
 **Headers:**
@@ -363,7 +390,7 @@ Authorization: Bearer {token}
 
 ## 💊 Prescription APIs
 
-### 14. Create Prescription
+### 15. Create Prescription
 **POST** `/prescriptions`
 
 **Headers:**
@@ -896,4 +923,3 @@ Authorization: Bearer {token}
 - [ ] Submit Feedback
 - [ ] Get Feedback by Doctor
 - [ ] Get Average Rating
-
