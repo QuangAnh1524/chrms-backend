@@ -7,7 +7,8 @@ Tài liệu này mô tả từng bước hành động điển hình cho ba vai 
 - **Bước chính:**
   1. Đăng nhập `POST /auth/login` → lưu token.
   2. Tra cứu danh mục: `GET /hospitals`, `GET /doctors`, `GET /doctors/hospital/{id}`, `GET /doctors/department/{id}`.
-  3. Giám sát appointment: `GET /appointments/{id}`; khi cần có thể `POST /appointments/{id}/confirm|complete|cancel`.
+  3. Xem lịch khám sắp tới: `GET /doctors/appointments/upcoming`.
+  4. Giám sát appointment: `GET /appointments/{id}`; khi cần có thể `POST /appointments/{id}/confirm|complete|cancel`.
   4. Hỗ trợ thanh toán: `GET /payments/appointment/{appointmentId}`, `POST /payments/{transactionRef}/complete` khi cần chốt giao dịch.
   5. Kiểm tra hồ sơ/yêu cầu tải file: `GET /medical-records/patient/{patientId}`, `GET /medical-records/{id}`, download file qua `/medical-records/files/...`.
   6. Theo dõi phản hồi: `GET /feedback/doctor/{doctorId}` và `/average-rating`.
@@ -18,7 +19,8 @@ Tài liệu này mô tả từng bước hành động điển hình cho ba vai 
   1. Đăng nhập `POST /auth/login` → token doctor.
   2. Khai báo ca làm việc: `POST /doctors/schedules` (ngày trong tuần + giờ bắt đầu/kết thúc). Kiểm tra lại bằng `GET /doctors/{doctorId}/schedules`.
   3. Tiếp nhận & quản lý appointment:
-     - Xem chi tiết: `GET /appointments/{id}`.
+    - Xem lịch khám sắp tới: `GET /doctors/appointments/upcoming`.
+    - Xem chi tiết: `GET /appointments/{id}`.
      - Chuyển trạng thái: `POST /appointments/{id}/confirm` sau khi chấp nhận; `POST /appointments/{id}/complete` sau khi khám; nếu cần huỷ dùng `.../cancel`.
   4. Lập hồ sơ khám:
      - Tạo hồ sơ: `POST /medical-records` với chẩn đoán/triệu chứng.
@@ -26,7 +28,7 @@ Tài liệu này mô tả từng bước hành động điển hình cho ba vai 
      - Upload file cận lâm sàng: `POST /medical-records/files/upload`.
      - Duyệt hồ sơ: `POST /medical-records/{id}/approve` (khóa sửa).
      - Kê đơn thuốc: `POST /prescriptions` cho hồ sơ đã duyệt.
-  5. Trao đổi với bệnh nhân: gửi/nhận tin qua `POST /chat/appointments/{id}/messages` và poll `GET /chat/appointments/{id}/messages` hoặc `.../unread`; đánh dấu đọc bằng `POST .../messages/read`.
+  6. Trao đổi với bệnh nhân: gửi/nhận tin qua `POST /chat/appointments/{id}/messages` và poll `GET /chat/appointments/{id}/messages` hoặc `.../unread`; đánh dấu đọc bằng `POST .../messages/read`.
   6. Theo dõi phản hồi: đọc rating qua `GET /feedback/doctor/{doctorId}` hoặc trung bình qua `/average-rating`.
 
 ## 3. Patient

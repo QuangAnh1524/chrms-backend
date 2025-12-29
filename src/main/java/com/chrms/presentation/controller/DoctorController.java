@@ -1,8 +1,10 @@
 package com.chrms.presentation.controller;
 
 import com.chrms.application.dto.command.CreateScheduleCommand;
+import com.chrms.application.dto.result.AppointmentResult;
 import com.chrms.application.dto.result.ScheduleResult;
 import com.chrms.application.usecase.doctor.CreateScheduleUseCase;
+import com.chrms.application.usecase.doctor.GetDoctorAppointmentsUseCase;
 import com.chrms.application.usecase.doctor.GetAvailableSlotsUseCase;
 import com.chrms.domain.entity.Doctor;
 import com.chrms.domain.entity.DoctorSchedule;
@@ -12,10 +14,13 @@ import com.chrms.domain.repository.DoctorScheduleRepository;
 import com.chrms.domain.repository.UserRepository;
 import com.chrms.presentation.dto.request.CreateScheduleRequest;
 import com.chrms.presentation.dto.response.ApiResponse;
+import com.chrms.presentation.dto.response.AppointmentResponse;
 import com.chrms.presentation.dto.response.ScheduleResponse;
+import com.chrms.presentation.mapper.AppointmentMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,6 +28,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -42,6 +48,8 @@ public class DoctorController {
     private final DoctorScheduleRepository scheduleRepository;
     private final CreateScheduleUseCase createScheduleUseCase;
     private final GetAvailableSlotsUseCase getAvailableSlotsUseCase;
+    private final GetDoctorAppointmentsUseCase getDoctorAppointmentsUseCase;
+    private final AppointmentMapper appointmentMapper;
 
     @GetMapping
     @Operation(summary = "Get all doctors", description = "Get list of all doctors")
@@ -189,6 +197,23 @@ public class DoctorController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         List<GetAvailableSlotsUseCase.TimeSlotResult> slots = getAvailableSlotsUseCase.execute(doctorId, date);
         return ApiResponse.success(slots);
+    }
+
+    @GetMapping("/appointments/upcoming")
+    @Operation(summary = "Get upcoming appointments", description = "Retrieve upcoming appointments for the authenticated doctor")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ApiResponse<List<AppointmentResponse>> getUpcomingAppointments(HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+
+        Doctor doctor = doctorRepository.findByUserId(userId)
+                .orElseThrow(() -> new com.chrms.domain.exception.EntityNotFoundException("Doctor profile not found for user: " + userId));
+
+        List<AppointmentResult> results = getDoctorAppointmentsUseCase.getUpcomingAppointments(doctor.getId());
+        List<AppointmentResponse> responses = results.stream()
+                .map(appointmentMapper::toResponse)
+                .toList();
+
+        return ApiResponse.success("Upcoming appointments retrieved successfully", responses);
     }
 
     @Data
