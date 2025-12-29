@@ -13,6 +13,24 @@
 | 3 | POST `/auth/logout` | Đăng xuất/blacklist token | Bearer token hiện tại | — | 200, message "Logout successful" |
 | 4 | POST `/auth/refresh` | Đổi token mới khi còn hạn | Bearer token hiện tại | — | 200, token mới + user info |
 
+**Ghi chú đăng ký**
+- PATIENT: có thể chỉ gửi các trường cơ bản như ví dụ trên, hồ sơ bệnh nhân bổ sung sau.
+- DOCTOR: cần thêm `hospitalId`, `specialty`, `licenseNumber` (các trường `departmentId`, `experienceYears`, `consultationFee` là tuỳ chọn). Ví dụ:
+  ```json
+  {
+    "email": "doctor_new@test.com",
+    "password": "pass12345",
+    "fullName": "BS. Nguyễn Văn A",
+    "role": "DOCTOR",
+    "hospitalId": 1,
+    "departmentId": 1,
+    "specialty": "Tim mạch",
+    "licenseNumber": "BYT-NEW-001",
+    "experienceYears": 5,
+    "consultationFee": 300000
+  }
+  ```
+
 ## 2. Danh mục bệnh viện/bác sĩ
 | # | Endpoint | Mục đích | Header | Body JSON mẫu | Kỳ vọng |
 | --- | --- | --- | --- | --- | --- |

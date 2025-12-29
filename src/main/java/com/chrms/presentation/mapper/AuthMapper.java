@@ -24,6 +24,12 @@ public class AuthMapper {
                 .emergencyContact(request.getEmergencyContact())
                 .bloodType(request.getBloodType())
                 .allergies(request.getAllergies())
+                .hospitalId(request.getHospitalId())
+                .departmentId(request.getDepartmentId())
+                .specialty(request.getSpecialty())
+                .licenseNumber(request.getLicenseNumber())
+                .experienceYears(request.getExperienceYears())
+                .consultationFee(request.getConsultationFee())
                 .build();
     }
 

@@ -144,7 +144,7 @@ Admin:    admin@chrms.vn    / password123
 
 | Nhóm | Endpoint | Mô tả nhanh | Body/params tối thiểu |
 | --- | --- | --- | --- |
-| Auth | POST `/auth/register` | Đăng ký user (PATIENT/DOCTOR/ADMIN) | `{ email, password, role, fullName, phone? }` |
+| Auth | POST `/auth/register` | Đăng ký user (PATIENT/DOCTOR/ADMIN) | `{ email, password, role, fullName, phone?, ... }` |
 |  | POST `/auth/login` | Lấy JWT | `{ email, password }` |
 |  | POST `/auth/logout` | Logout, blacklist token hiện tại | Header `Authorization` |
 |  | POST `/auth/refresh` | Làm mới JWT còn hạn | Header `Authorization` (Bearer token cũ) |
@@ -190,6 +190,10 @@ Admin:    admin@chrms.vn    / password123
 | Feedback | POST `/feedback` | Bệnh nhân gửi đánh giá | `{ appointmentId, rating, comment? }` |
 |  | GET `/feedback/doctor/{doctorId}` | Danh sách feedback theo thời gian | Path: `doctorId` |
 |  | GET `/feedback/doctor/{doctorId}/average-rating` | Trung bình rating (cache 10 phút) | Path: `doctorId` |
+
+**Ghi chú đăng ký**
+- Role **PATIENT**: các trường nhân khẩu có thể bỏ trống và cập nhật sau.
+- Role **DOCTOR**: cần `hospitalId`, `specialty`, `licenseNumber` (các trường khác như `departmentId`, `experienceYears`, `consultationFee` là tuỳ chọn).
 
 ### 🔄 Chuỗi workflow mẫu (tóm tắt)
 1) **Bệnh nhân đặt lịch + thanh toán:** Login → lấy `available-slots` → `POST /patients/appointments` → `POST /payments` → `POST /payments/{ref}/complete`.

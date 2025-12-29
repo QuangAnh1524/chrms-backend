@@ -6,7 +6,7 @@ Base URL: `http://localhost:8080/api/v1`
 
 | # | Method & Path | Vai trò sử dụng | Body/Params bắt buộc | Trả về quan trọng |
 | --- | --- | --- | --- | --- |
-| 1 | `POST /auth/register` | PATIENT/DOCTOR/ADMIN | `{ email, password, role, fullName, phone? }` | token, userId, role |
+| 1 | `POST /auth/register` | PATIENT/DOCTOR/ADMIN | `{ email, password, role, fullName, phone?, ... }` | token, userId, role |
 | 2 | `POST /auth/login` | Tất cả | `{ email, password }` | token, userId, role |
 | 3 | `POST /auth/logout` | Tất cả | Header `Authorization` | 200 OK (token bị blacklist nếu bật) |
 | 4 | `POST /auth/refresh` | Tất cả | Header `Authorization` | token mới từ token còn hạn |
@@ -95,22 +95,23 @@ Base URL: `http://localhost:8080/api/v1`
    - Token hiện được cache/blacklist qua Redis nếu logout.
 
 2. **Thông tin bệnh nhân khi đăng ký**: Với role PATIENT, các trường ngày sinh/giới tính/địa chỉ/liên hệ khẩn cấp/nhóm máu/dị ứng có thể bỏ trống; bổ sung sau khi hoàn thiện hồ sơ.
+3. **Thông tin bác sĩ khi đăng ký**: Với role DOCTOR, cần cung cấp `hospitalId`, `specialty`, `licenseNumber`. Các trường `departmentId`, `experienceYears`, `consultationFee` là tuỳ chọn.
 
-3. **File Upload**: Use `multipart/form-data` with fields:
+4. **File Upload**: Use `multipart/form-data` with fields:
    - `medicalRecordId` (number)
    - `file` (file)
    - `fileType` (enum: XRAY, LAB_RESULT, SCAN, OTHER)
 
-4. **Polling**: For chat messages, poll every 10 seconds:
+5. **Polling**: For chat messages, poll every 10 seconds:
    - Use `after` parameter to get only new messages
    - Or use `/unread` endpoint
 
-5. **Date/Time Formats**:
+6. **Date/Time Formats**:
    - Date: `YYYY-MM-DD` (ví dụ `2025-12-10`)
    - Time: `HH:mm` (ví dụ `09:00`)
    - DateTime: `YYYY-MM-DDTHH:mm:ss` (ví dụ `2025-12-03T10:00:00`)
 
-6. **Enums**:
+7. **Enums**:
    - `role`: PATIENT, DOCTOR, ADMIN
    - `gender`: MALE, FEMALE, OTHER
    - `fileType`: XRAY, LAB_RESULT, SCAN, OTHER
@@ -118,8 +119,8 @@ Base URL: `http://localhost:8080/api/v1`
    - `paymentStatus`: PENDING, COMPLETED, FAILED
    - `recordStatus`: DRAFT, PENDING, APPROVED, SHARED
    - `appointmentStatus`: PENDING, CONFIRMED, COMPLETED, CANCELLED
-7. **Email thông báo**: khi bệnh nhân đặt lịch thành công và có email, backend gửi mail xác nhận thật qua `JavaMailSender` (From mặc định lấy `spring.mail.username`, cần cấu hình SMTP hợp lệ; không có endpoint thủ công để trigger gửi mail).
-8. **Thanh toán**: `POST /payments` tạo giao dịch trạng thái `PENDING` với số tiền mặc định `500000` VND; nếu paymentMethod khác `CASH`, hệ thống gọi `PaymentGatewayClient` để sinh `transactionRef`/`paymentUrl` rồi mới lưu.
+8. **Email thông báo**: khi bệnh nhân đặt lịch thành công và có email, backend gửi mail xác nhận thật qua `JavaMailSender` (From mặc định lấy `spring.mail.username`, cần cấu hình SMTP hợp lệ; không có endpoint thủ công để trigger gửi mail).
+9. **Thanh toán**: `POST /payments` tạo giao dịch trạng thái `PENDING` với số tiền mặc định `500000` VND; nếu paymentMethod khác `CASH`, hệ thống gọi `PaymentGatewayClient` để sinh `transactionRef`/`paymentUrl` rồi mới lưu.
 
 ---
 
@@ -131,7 +132,7 @@ Base URL: `http://localhost:8080/api/v1`
    → Save token
 
 2. Doctor Registration  
-   POST /auth/register (Doctor)
+   POST /auth/register (Doctor) với `hospitalId`, `specialty`, `licenseNumber` (+ `departmentId?`, `experienceYears?`, `consultationFee?`)
    → Save token
 
 3. Doctor Setup Schedule
